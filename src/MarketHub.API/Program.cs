@@ -29,8 +29,7 @@ builder.Services.AddApiVersioningConfig();
 // 4. Add Swagger
 builder.Services.AddSwaggerConfig();
 
-// 5. Add Authentication & Authorization
-builder.Services.AddJwtAuthentication(builder.Configuration);
+// 5. Removed duplicate Auth registration as it is handled in Infrastructure
 
 // 6. Rate Limiting
 builder.Services.AddRateLimiter(options =>

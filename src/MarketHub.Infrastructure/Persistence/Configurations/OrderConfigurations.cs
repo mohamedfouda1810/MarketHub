@@ -18,6 +18,16 @@ namespace MarketHub.Infrastructure.Persistence.Configurations
                 a.Property(p => p.ZipCode).HasColumnName("ShippingZipCode");
                 a.Property(p => p.Country).HasColumnName("ShippingCountry");
             });
+
+            builder.HasOne(o => o.Vendor)
+                   .WithMany(v => v.Orders)
+                   .HasForeignKey(o => o.VendorId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(o => o.Customer)
+                   .WithMany(c => c.Orders)
+                   .HasForeignKey(o => o.CustomerId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 
@@ -37,7 +47,8 @@ namespace MarketHub.Infrastructure.Persistence.Configurations
         {
             builder.HasIndex(c => c.Code).IsUnique();
             builder.HasIndex(c => c.IsActive).HasFilter("[IsActive] = 1");
-            builder.Property(c => c.DiscountAmount).HasPrecision(18, 2);
+            builder.Property(c => c.Value).HasPrecision(18, 2);
+            builder.Ignore(c => c.DiscountAmount);
         }
     }
 

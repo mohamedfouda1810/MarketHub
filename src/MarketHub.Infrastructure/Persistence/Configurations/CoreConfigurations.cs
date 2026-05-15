@@ -33,6 +33,18 @@ namespace MarketHub.Infrastructure.Persistence.Configurations
             builder.HasIndex(p => new { p.VendorId, p.Slug }).IsUnique();
             builder.HasIndex(p => new { p.VendorId, p.Status });
             builder.Property(p => p.Price).HasPrecision(18, 2);
+            builder.OwnsOne(p => p.Dimensions);
+            builder.Ignore(p => p.CategoryId);
+
+            builder.HasOne(p => p.Vendor)
+                   .WithMany(v => v.Products)
+                   .HasForeignKey(p => p.VendorId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(p => p.Category)
+                   .WithMany(c => c.Products)
+                   .HasForeignKey(p => p.StoreCategoryId)
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
@@ -42,6 +54,7 @@ namespace MarketHub.Infrastructure.Persistence.Configurations
         {
             builder.Property(pv => pv.Attributes).HasColumnType("nvarchar(max)");
             builder.Property(pv => pv.PriceAdjustment).HasPrecision(18, 2);
+            builder.Ignore(pv => pv.PriceAdjustment);
         }
     }
 }

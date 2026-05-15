@@ -50,6 +50,7 @@ namespace MarketHub.Infrastructure
             services.AddScoped<IVendorRepository, VendorRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IOrderRepository, OrderRepository>();
+            services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;
@@ -111,6 +112,16 @@ namespace MarketHub.Infrastructure
             services.AddScoped<IIdentityService, IdentityService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddHttpContextAccessor();
+
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireVendor", policy => 
+                    policy.RequireClaim("role", "Vendor"));
+                options.AddPolicy("RequireAdmin", policy => 
+                    policy.RequireClaim("role", "Admin", "SuperAdmin"));
+                options.AddPolicy("RequireSuperAdmin", policy => 
+                    policy.RequireClaim("role", "SuperAdmin"));
+            });
 
             return services;
         }
