@@ -1,0 +1,82 @@
+# ============================================================
+# .NET
+# ============================================================
+**/bin/
+**/obj/
+**/*.user
+**/.vs/
+**/_ReSharper*/
+*.DotSettings.user
+
+# Secrets — NEVER commit these
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.Staging.json
+
+# Do commit migrations
+# (intentionally not ignoring Migrations/)
+
+# NuGet
+**/.nuget/
+**/packages/
+!**/packages/build/
+*.nupkg
+
+# Test results
+**/TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# ============================================================
+# Node / Next.js
+# ============================================================
+node_modules/
+.next/
+out/
+dist/
+
+# Secrets — NEVER commit
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Do commit .env.example
+!.env.example
+
+# Build artifacts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ============================================================
+# Docker
+# ============================================================
+.docker/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# IDE
+# ============================================================
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+# But keep recommended extensions
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# ============================================================
+# Logs
+# ============================================================
+logs/
+*.log

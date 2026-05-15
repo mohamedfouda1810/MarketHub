@@ -1,0 +1,73 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: Test@123456!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Test@123456! -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore src/MarketHub.sln
+
+      - name: Build
+        run: dotnet build src/MarketHub.sln --no-restore --configuration Release
+
+      - name: Run Domain tests
+        run: dotnet test tests/MarketHub.Domain.Tests/ --no-build --configuration Release --verbosity normal
+
+      - name: Run Application tests
+        run: dotnet test tests/MarketHub.Application.Tests/ --no-build --configuration Release --verbosity normal
+
+      - name: Run Integration tests
+        run: dotnet test tests/MarketHub.Integration.Tests/ --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=MarketHubTestDb;User Id=sa;Password=Test@123456!;TrustServerCertificate=True"
+          ConnectionStrings__Redis: "localhost:6379"
