@@ -15,8 +15,16 @@ public record ProductDto(Guid Id, string Name, string Slug, decimal Price, int S
 
 // Queries
 public record GetProductsQuery(string? SearchTerm, ProductFilters? Filters, int PageNumber = 1, int PageSize = 10) : IRequest<PagedList<ProductDto>>;
-public record GetFeaturedProductsQuery() : IRequest<List<ProductDto>>;
-public record GetProductDetailQuery(string VendorSlug, string Slug) : IRequest<ProductDto>;
+public record GetFeaturedProductsQuery() : IRequest<List<ProductDto>>, ICacheableQuery
+{
+    public string CacheKey => "FeaturedProducts";
+    public TimeSpan? Expiration => TimeSpan.FromMinutes(30);
+}
+public record GetProductDetailQuery(string VendorSlug, string Slug) : IRequest<ProductDto>, ICacheableQuery
+{
+    public string CacheKey => $"ProductDetail_{VendorSlug}_{Slug}";
+    public TimeSpan? Expiration => TimeSpan.FromMinutes(10);
+}
 public record GetVendorProductsQuery(int PageNumber = 1, int PageSize = 10) : IRequest<PagedList<ProductDto>>;
 
 // Commands

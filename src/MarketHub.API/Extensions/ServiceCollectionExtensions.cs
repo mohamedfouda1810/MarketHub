@@ -98,4 +98,15 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddRedisCache(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = configuration.GetConnectionString("Redis");
+            options.InstanceName = "MarketHub_";
+        });
+
+        return services;
+    }
 }

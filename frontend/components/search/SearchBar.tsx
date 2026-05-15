@@ -1,8 +1,11 @@
+'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { useDebounce } from '../../lib/hooks/useDebounce';
 import { useGetProductsQuery } from '../../lib/api/productApi';
+import { getErrorMessage } from '../../lib/utils/error-handler';
 
 export const SearchBar = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,7 +14,7 @@ export const SearchBar = () => {
   const router = useRouter();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const { data, isFetching } = useGetProductsQuery(
+  const { data, isFetching, error } = useGetProductsQuery(
     { searchTerm: debouncedSearch, PageSize: 5 },
     { skip: debouncedSearch.length < 2 }
   );
@@ -61,6 +64,8 @@ export const SearchBar = () => {
         <div className="absolute top-12 left-0 w-full bg-white border shadow-lg rounded-md z-50 overflow-hidden">
           {isFetching ? (
             <div className="p-4 text-center text-sm text-gray-500">Loading...</div>
+          ) : error ? (
+            <div className="p-4 text-center text-sm text-red-500">{getErrorMessage(error)}</div>
           ) : data?.data?.items?.length ? (
             <ul className="py-2">
               {data.data.items.map((item: any) => (

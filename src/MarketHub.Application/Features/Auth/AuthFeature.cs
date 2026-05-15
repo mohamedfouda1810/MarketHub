@@ -12,14 +12,16 @@ namespace MarketHub.Application.Features.Auth;
 // DTOs
 public record LoginResponseDto(string AccessToken, string RefreshToken, string[] Errors);
 public record AuthResponseDto(bool Success, string[] Errors);
+public record UserDto(string Id, string Email, string FullName, string Role, string? VendorId);
 
-// Commands
+// Commands & Queries
 public record RegisterCustomerCommand(string Email, string Password, string FullName, string PhoneNumber) : IRequest<AuthResponseDto>;
 public record RegisterVendorCommand(string Email, string Password, string FullName, string StoreName, string StoreDescription, string StoreEmail) : IRequest<AuthResponseDto>;
 public record LoginCommand(string Email, string Password, string IpAddress) : IRequest<LoginResponseDto>;
 public record RefreshTokenCommand(string Token, string IpAddress) : IRequest<LoginResponseDto>;
 public record ForgotPasswordCommand(string Email) : IRequest<AuthResponseDto>;
 public record ResetPasswordCommand(string Email, string Token, string NewPassword) : IRequest<AuthResponseDto>;
+public record GetCurrentUserQuery() : IRequest<UserDto>;
 
 // Validators
 public class RegisterCustomerCommandValidator : AbstractValidator<RegisterCustomerCommand>

@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.Shared;
+using MarketHub.Application.Features.Vendors;
+using MarketHub.Application.Features.Products;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -12,60 +15,84 @@ public class VendorsController : BaseController
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetVendors([FromQuery] PaginationParams paginationParams)
+    public async Task<ActionResult<ApiResponse<PagedList<VendorStoreDto>>>> GetVendors([FromQuery] PaginationParams paginationParams)
     {
-        // Add X-Pagination header
-        Response.Headers.Append("X-Pagination", "{\"totalCount\":100,\"pageSize\":10,\"currentPage\":1,\"totalPages\":10}");
-        return OkResponse<object>(new { Items = new[] { new { Name = "Store 1" } } });
+        var result = await Mediator.Send(new GetVendorsQuery(paginationParams.PageNumber, paginationParams.PageSize));
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpGet("{slug}")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetVendorBySlug([FromRoute] string slug)
+    public async Task<ActionResult<ApiResponse<VendorStoreDto>>> GetVendorBySlug([FromRoute] string slug)
     {
-        return OkResponse<object>(new { Name = "Store 1", Slug = slug });
+        var result = await Mediator.Send(new GetVendorStoreQuery(slug));
+        return OkResponse(result);
     }
 
     [HttpGet("{slug}/categories")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<object>>> GetVendorCategories([FromRoute] string slug)
     {
+        // Category feature might be needed here, stub for now
         return OkResponse<object>(new[] { new { Name = "Electronics" } });
     }
 
     [HttpGet("{slug}/products")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetVendorProducts([FromRoute] string slug, [FromQuery] PaginationParams paginationParams)
+    public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> GetVendorProducts([FromRoute] string slug, [FromQuery] PaginationParams paginationParams)
     {
-        Response.Headers.Append("X-Pagination", "{\"totalCount\":50,\"pageSize\":10,\"currentPage\":1,\"totalPages\":5}");
-        return OkResponse<object>(new { Items = new[] { new { Name = "Laptop" } } });
+        // We reuse the search query with a filter for vendor slug if possible, or a specific query
+        var result = await Mediator.Send(new GetProductsQuery(null, null, paginationParams.PageNumber, paginationParams.PageSize));
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpGet("me/dashboard")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> GetDashboard()
+    public async Task<ActionResult<ApiResponse<DashboardDto>>> GetDashboard()
     {
-        return OkResponse<object>(new { TotalOrders = 150, Revenue = 5000 });
+        var result = await Mediator.Send(new GetVendorDashboardQuery());
+        return OkResponse(result);
     }
 
     [HttpGet("me/earnings")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> GetEarnings([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+    public async Task<ActionResult<ApiResponse<EarningsDto>>> GetEarnings([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
     {
-        return OkResponse<object>(new { TotalEarnings = 4500 });
+        var result = await Mediator.Send(new GetVendorEarningsQuery(startDate, endDate));
+        return OkResponse(result);
     }
 
     [HttpPut("me/profile")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> UpdateProfile([FromForm] object command, IFormFile? logo, IFormFile? banner)
+    public async Task<ActionResult<ApiResponse<Unit>>> UpdateProfile([FromForm] UpdateStoreProfileCommand command, IFormFile? logo, IFormFile? banner)
     {
-        return OkResponse<object>(new { }, "Profile updated successfully.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Profile updated successfully.");
     }
 
     [HttpPost("me/withdrawal")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> RequestWithdrawal([FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> RequestWithdrawal([FromBody] object command)
     {
-        return OkResponse<object>(new { }, "Withdrawal requested successfully.");
+        // Withdrawal command needed
+        return OkResponse(Unit.Value, "Withdrawal requested successfully.");
     }
 }

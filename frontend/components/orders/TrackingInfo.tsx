@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useTrackOrderQuery } from '../../lib/api/orderApi';
 import { useSignalR } from '../../lib/hooks/useSignalR';

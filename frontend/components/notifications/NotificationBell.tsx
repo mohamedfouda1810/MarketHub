@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { useGetNotificationsQuery, useGetUnreadCountQuery, useMarkReadMutation, useMarkAllReadMutation } from '../../lib/api/notificationApi';
