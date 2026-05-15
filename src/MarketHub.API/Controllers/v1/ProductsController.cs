@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.Shared;
+using MarketHub.Application.Features.Products;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -12,80 +14,111 @@ public class ProductsController : BaseController
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> SearchProducts([FromQuery] string? searchTerm, [FromQuery] PaginationParams paginationParams)
+    public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> SearchProducts([FromQuery] string? searchTerm, [FromQuery] PaginationParams paginationParams)
     {
-        Response.Headers.Append("X-Pagination", "{\"totalCount\":1000,\"pageSize\":10,\"currentPage\":1,\"totalPages\":100}");
-        return OkResponse<object>(new { Items = new[] { new { Name = "Sample Product" } } });
+        var query = new GetProductsQuery(searchTerm, null, paginationParams.PageNumber, paginationParams.PageSize);
+        var result = await Mediator.Send(query);
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpGet("featured")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetFeaturedProducts()
+    public async Task<ActionResult<ApiResponse<List<ProductDto>>>> GetFeaturedProducts()
     {
-        return OkResponse<object>(new[] { new { Name = "Featured Product" } });
+        var result = await Mediator.Send(new GetFeaturedProductsQuery());
+        return OkResponse(result);
     }
 
     [HttpGet("{vendorSlug}/{slug}")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetProductDetail([FromRoute] string vendorSlug, [FromRoute] string slug)
+    public async Task<ActionResult<ApiResponse<ProductDto>>> GetProductDetail([FromRoute] string vendorSlug, [FromRoute] string slug)
     {
-        return OkResponse<object>(new { Name = "Sample Product Detail", Vendor = vendorSlug });
+        var result = await Mediator.Send(new GetProductDetailQuery(vendorSlug, slug));
+        return OkResponse(result);
     }
 
     [HttpGet("me")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> GetMyProducts([FromQuery] PaginationParams paginationParams)
+    public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> GetMyProducts([FromQuery] PaginationParams paginationParams)
     {
-        Response.Headers.Append("X-Pagination", "{\"totalCount\":20,\"pageSize\":10,\"currentPage\":1,\"totalPages\":2}");
-        return OkResponse<object>(new { Items = new[] { new { Name = "My Product" } } });
+        var query = new GetVendorProductsQuery(paginationParams.PageNumber, paginationParams.PageSize);
+        var result = await Mediator.Send(query);
+
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpPost]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> CreateProduct([FromForm] object command, List<IFormFile> images)
+    public async Task<ActionResult<ApiResponse<Guid>>> CreateProduct([FromForm] CreateProductCommand command, List<IFormFile> images)
     {
-        return OkResponse<object>(new { Id = Guid.NewGuid() }, "Product created successfully.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Product created successfully.");
     }
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> UpdateProduct([FromRoute] Guid id, [FromForm] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> UpdateProduct([FromRoute] Guid id, [FromForm] UpdateProductCommand command)
     {
-        return OkResponse<object>(new { }, "Product updated successfully.");
+        if (id != command.Id) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Product updated successfully.");
     }
 
     [HttpPut("{id}/publish")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> PublishProduct([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> PublishProduct([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Product published successfully.");
+        var result = await Mediator.Send(new PublishProductCommand(id));
+        return OkResponse(result, "Product published successfully.");
     }
 
     [HttpPut("{id}/archive")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> ArchiveProduct([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> ArchiveProduct([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Product archived successfully.");
+        var result = await Mediator.Send(new ArchiveProductCommand(id));
+        return OkResponse(result, "Product archived successfully.");
     }
 
     [HttpPut("{id}/stock")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> AdjustStock([FromRoute] Guid id, [FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> AdjustStock([FromRoute] Guid id, [FromBody] AdjustStockCommand command)
     {
-        return OkResponse<object>(new { }, "Product stock updated successfully.");
+        if (id != command.Id) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Product stock updated successfully.");
     }
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> DeleteProduct([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> DeleteProduct([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Product deleted successfully.");
+        var result = await Mediator.Send(new DeleteProductCommand(id));
+        return OkResponse(result, "Product deleted successfully.");
     }
 
     [HttpPost("{id}/images")]
     [Authorize(Policy = "RequireVendor")]
     public async Task<ActionResult<ApiResponse<object>>> UploadProductImages([FromRoute] Guid id, List<IFormFile> images)
     {
+        // Image upload logic usually requires a service, stub for now
         return OkResponse<object>(new { }, "Images uploaded successfully.");
     }
 

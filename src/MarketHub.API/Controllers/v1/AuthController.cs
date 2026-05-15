@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.Application.Features.Auth;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -76,10 +77,10 @@ public class AuthController : BaseController
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<object>>> Logout()
+    public async Task<ActionResult<ApiResponse<Unit>>> Logout()
     {
         Response.Cookies.Delete("refreshToken");
-        return OkResponse<object>(new { }, "Logged out successfully.");
+        return OkResponse(Unit.Value, "Logged out successfully.");
     }
 
     [HttpPost("forgot-password")]

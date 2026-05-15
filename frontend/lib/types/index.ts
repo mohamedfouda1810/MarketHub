@@ -38,6 +38,16 @@ export interface ProductVariant {
   stockQuantity: number;
 }
 
+export interface ProductDto {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  stockQuantity: number;
+  description?: string;
+  vendorName: string;
+}
+
 export interface Product {
   id: string;
   vendorId: string;
