@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowRight, ShoppingBag, ShieldCheck, Zap, Globe, Star } from 'lucide-react';
 import ProductCard from '@/components/product/ProductCard';
+import { cn } from '@/lib/utils';
 
 const featuredCategories = [
   { name: 'Electronics', icon: '📱', color: 'bg-blue-500/10 text-blue-600' },

@@ -99,4 +99,12 @@ public class AuthController : BaseController
         if (!result.Success) return BadRequestResponse<AuthResponseDto>(result, string.Join(", ", result.Errors));
         return OkResponse(result, "Password reset successfully.");
     }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UserDto>>> GetCurrentUser()
+    {
+        var result = await Mediator.Send(new GetCurrentUserQuery());
+        return OkResponse(result);
+    }
 }

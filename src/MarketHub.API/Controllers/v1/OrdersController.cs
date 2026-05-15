@@ -2,6 +2,9 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
+using MarketHub.Application.Features.Orders;
+using MarketHub.Shared;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -11,64 +14,93 @@ public class OrdersController : BaseController
 {
     [HttpPost("checkout")]
     [Authorize] // Assume Customer
-    public async Task<ActionResult<ApiResponse<object>>> Checkout([FromBody] object command)
+    public async Task<ActionResult<ApiResponse<OrderDto>>> Checkout([FromBody] CreateOrderCommand command)
     {
-        return OkResponse<object>(new { OrderId = Guid.NewGuid() }, "Checkout completed successfully.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Checkout completed successfully.");
     }
 
     [HttpGet("my")]
     [Authorize] // Assume Customer
-    public async Task<ActionResult<ApiResponse<object>>> GetMyOrders()
+    public async Task<ActionResult<ApiResponse<PagedList<OrderSummaryDto>>>> GetMyOrders([FromQuery] string? status, [FromQuery] PaginationParams paginationParams)
     {
-        return OkResponse<object>(new { Items = new[] { new { OrderNumber = "ORD-12345" } } });
+        var result = await Mediator.Send(new GetMyOrdersQuery(status, paginationParams.PageNumber, paginationParams.PageSize));
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpGet("my/{orderNumber}")]
     [Authorize] // Assume Customer
-    public async Task<ActionResult<ApiResponse<object>>> GetMyOrderDetails([FromRoute] string orderNumber)
+    public async Task<ActionResult<ApiResponse<OrderDetailDto>>> GetMyOrderDetails([FromRoute] string orderNumber)
     {
-        return OkResponse<object>(new { OrderNumber = orderNumber, Status = "Pending" });
+        var result = await Mediator.Send(new GetOrderByNumberQuery(orderNumber));
+        return OkResponse(result);
     }
 
     [HttpPut("my/{id}/cancel")]
     [Authorize] // Assume Customer
-    public async Task<ActionResult<ApiResponse<object>>> CancelOrder([FromRoute] Guid id, [FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> CancelOrder([FromRoute] Guid id, [FromBody] CancelOrderCommand command)
     {
-        return OkResponse<object>(new { }, "Order cancelled successfully.");
+        if (id != command.OrderId) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Order cancelled successfully.");
     }
 
     [HttpGet("vendor")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> GetVendorOrders()
+    public async Task<ActionResult<ApiResponse<PagedList<OrderSummaryDto>>>> GetVendorOrders([FromQuery] string? status, [FromQuery] PaginationParams paginationParams)
     {
-        return OkResponse<object>(new { Items = new[] { new { OrderNumber = "ORD-12345" } } });
+        var result = await Mediator.Send(new GetVendorOrdersQuery(status, null, null, paginationParams.PageNumber, paginationParams.PageSize));
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
     }
 
     [HttpPut("vendor/{id}/confirm")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> ConfirmOrder([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> ConfirmOrder([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Order confirmed successfully.");
+        var result = await Mediator.Send(new ConfirmOrderCommand(id));
+        return OkResponse(result, "Order confirmed successfully.");
     }
 
     [HttpPut("vendor/{id}/ship")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> ShipOrder([FromRoute] Guid id, [FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> ShipOrder([FromRoute] Guid id, [FromBody] MarkOrderShippedCommand command)
     {
-        return OkResponse<object>(new { }, "Order shipped successfully.");
+        if (id != command.OrderId) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Order shipped successfully.");
     }
 
     [HttpPut("vendor/{id}/deliver")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> DeliverOrder([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> DeliverOrder([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Order marked as delivered.");
+        var result = await Mediator.Send(new MarkOrderDeliveredCommand(id));
+        return OkResponse(result, "Order marked as delivered.");
     }
 
     [HttpGet("track/{orderNumber}")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> TrackOrder([FromRoute] string orderNumber)
+    public async Task<ActionResult<ApiResponse<TrackingDto>>> TrackOrder([FromRoute] string orderNumber)
     {
-        return OkResponse<object>(new { OrderNumber = orderNumber, Status = "Shipped", TrackingInfo = "123456789" });
+        var result = await Mediator.Send(new GetOrderTrackingQuery(orderNumber));
+        return OkResponse(result);
     }
 }

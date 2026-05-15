@@ -51,17 +51,21 @@ public class AuthHandlers :
     IRequestHandler<LoginCommand, LoginResponseDto>,
     IRequestHandler<RefreshTokenCommand, LoginResponseDto>,
     IRequestHandler<ForgotPasswordCommand, AuthResponseDto>,
-    IRequestHandler<ResetPasswordCommand, AuthResponseDto>
+    IRequestHandler<ResetPasswordCommand, AuthResponseDto>,
+    IRequestHandler<GetCurrentUserQuery, UserDto>
 {
     private readonly IIdentityService _identityService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
     public AuthHandlers(
         IIdentityService identityService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _identityService = identityService;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<AuthResponseDto> Handle(RegisterCustomerCommand request, CancellationToken cancellationToken)
@@ -114,5 +118,11 @@ public class AuthHandlers :
     {
         var (success, errors) = await _identityService.ResetPasswordAsync(request.Email, request.Token, request.NewPassword);
         return new AuthResponseDto(success, errors);
+    }
+
+    public async Task<UserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        return await _identityService.GetUserByIdAsync(userId);
     }
 }

@@ -2,6 +2,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
+using MarketHub.Application.Features.Cart;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -11,38 +13,45 @@ namespace MarketHub.API.Controllers.v1;
 public class CartController : BaseController
 {
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<object>>> GetCart()
+    public async Task<ActionResult<ApiResponse<CartDto>>> GetCart()
     {
-        return OkResponse<object>(new { Items = new[] { new { ProductId = Guid.NewGuid(), Quantity = 2 } }, Total = 100 });
+        var result = await Mediator.Send(new GetCartQuery());
+        return OkResponse(result);
     }
 
     [HttpPost("items")]
-    public async Task<ActionResult<ApiResponse<object>>> AddItemToCart([FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> AddItemToCart([FromBody] AddToCartCommand command)
     {
-        return OkResponse<object>(new { }, "Item added to cart.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Item added to cart.");
     }
 
     [HttpPut("items/{id}")]
-    public async Task<ActionResult<ApiResponse<object>>> UpdateCartItem([FromRoute] Guid id, [FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> UpdateCartItem([FromRoute] Guid id, [FromBody] UpdateCartItemCommand command)
     {
-        return OkResponse<object>(new { }, "Cart item updated.");
+        if (id != command.CartItemId) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Cart item updated.");
     }
 
     [HttpDelete("items/{id}")]
-    public async Task<ActionResult<ApiResponse<object>>> RemoveItemFromCart([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> RemoveItemFromCart([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Item removed from cart.");
+        var result = await Mediator.Send(new RemoveFromCartCommand(id));
+        return OkResponse(result, "Item removed from cart.");
     }
 
     [HttpDelete]
-    public async Task<ActionResult<ApiResponse<object>>> ClearCart()
+    public async Task<ActionResult<ApiResponse<Unit>>> ClearCart()
     {
-        return OkResponse<object>(new { }, "Cart cleared successfully.");
+        var result = await Mediator.Send(new ClearCartCommand());
+        return OkResponse(result, "Cart cleared successfully.");
     }
 
     [HttpGet("summary")]
-    public async Task<ActionResult<ApiResponse<object>>> GetCartSummary()
+    public async Task<ActionResult<ApiResponse<CartSummaryDto>>> GetCartSummary()
     {
-        return OkResponse<object>(new { ItemCount = 2, Subtotal = 100 });
+        var result = await Mediator.Send(new GetCartSummaryQuery());
+        return OkResponse(result);
     }
 }
