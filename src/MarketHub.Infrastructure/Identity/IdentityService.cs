@@ -85,6 +85,24 @@ namespace MarketHub.Infrastructure.Identity
             return await GenerateTokensAsync(user, ipAddress);
         }
 
+        public async Task<UserDto?> GetUserByIdAsync(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return null;
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? "Customer";
+
+            Guid? vendorId = null;
+            if (role == "Vendor")
+            {
+                var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                vendorId = vendor?.Id;
+            }
+
+            return new UserDto(user.Id.ToString(), user.Email!, user.UserName!, role, vendorId?.ToString());
+        }
+
         public async Task<(bool Success, string[] Errors)> ForgotPasswordAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);

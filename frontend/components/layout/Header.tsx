@@ -67,14 +67,6 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4 border-l pl-4 md:pl-6">
-            <button 
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
-              className="p-2.5 rounded-xl hover:bg-accent/50 transition-colors text-muted-foreground hover:text-foreground"
-            >
-               <span className="sr-only">Toggle theme</span>
-               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-
             {isAuthenticated ? (
               <>
                 <Link href="/account/notifications" className="p-2.5 rounded-xl hover:bg-accent/50 transition-colors relative group">
@@ -82,19 +74,27 @@ export default function Header() {
                   <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
                 </Link>
                 <Link 
-                  href={user?.role === 'Vendor' ? '/vendor/dashboard' : '/account/settings'} 
+                  href={user?.role === 'Vendor' ? '/vendor/dashboard' : '/orders'} 
                   className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center hover:ring-2 hover:ring-primary/20 transition-all overflow-hidden"
                 >
                   <UserIcon className="h-5 w-5 text-muted-foreground" />
                 </Link>
               </>
             ) : (
-              <Link 
-                href="/login" 
-                className="hidden sm:inline-flex h-10 items-center justify-center rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
-              >
-                Sign In
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link 
+                  href="/login" 
+                  className="hidden sm:inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
+                >
+                  Sign In
+                </Link>
+                <Link 
+                  href="/register" 
+                  className="hidden sm:inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  Sign Up
+                </Link>
+              </div>
             )}
 
             <button 

@@ -12,7 +12,6 @@ namespace MarketHub.Application.Features.Auth;
 // DTOs
 public record LoginResponseDto(string AccessToken, string RefreshToken, string[] Errors);
 public record AuthResponseDto(bool Success, string[] Errors);
-public record UserDto(string Id, string Email, string FullName, string Role, string? VendorId);
 
 // Commands & Queries
 public record RegisterCustomerCommand(string Email, string Password, string FullName, string PhoneNumber) : IRequest<AuthResponseDto>;
@@ -123,6 +122,7 @@ public class AuthHandlers :
     public async Task<UserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
-        return await _identityService.GetUserByIdAsync(userId);
+        var user = await _identityService.GetUserByIdAsync(userId);
+        return user ?? throw new NotFoundException("User", userId);
     }
 }

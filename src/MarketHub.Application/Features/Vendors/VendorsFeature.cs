@@ -1,7 +1,7 @@
 using AutoMapper;
 using FluentValidation;
 using MediatR;
-using MarketHub.Application.Common.Models;
+using MarketHub.Shared;
 using MarketHub.Shared;
 
 namespace MarketHub.Application.Features.Vendors;

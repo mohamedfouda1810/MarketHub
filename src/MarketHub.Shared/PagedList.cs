@@ -8,11 +8,17 @@ public class PagedList<T>
     public List<T> Items { get; }
     public int TotalCount { get; }
     public int PageNumber { get; }
+    public int CurrentPage => PageNumber; // Alias for API controllers
     public int PageSize { get; }
 
     public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
     public bool HasNextPage => PageNumber < TotalPages;
     public bool HasPreviousPage => PageNumber > 1;
+
+    public PagedList()
+    {
+        Items = new List<T>();
+    }
 
     public PagedList(List<T> items, int totalCount, int pageNumber, int pageSize)
     {

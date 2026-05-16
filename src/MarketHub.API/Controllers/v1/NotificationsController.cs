@@ -2,6 +2,9 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
+using MarketHub.Application.Features.Notifications;
+using MarketHub.Shared;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -11,20 +14,39 @@ namespace MarketHub.API.Controllers.v1;
 public class NotificationsController : BaseController
 {
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<object>>> GetNotifications()
+    public async Task<ActionResult<ApiResponse<PagedList<NotificationDto>>>> GetNotifications([FromQuery] bool? isRead, [FromQuery] PaginationParams paginationParams)
     {
-        return OkResponse<object>(new { Items = new[] { new { Message = "Your order shipped." } } });
+        var result = await Mediator.Send(new GetMyNotificationsQuery(isRead, paginationParams.PageNumber, paginationParams.PageSize));
+        
+        Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
+        { 
+            result.TotalCount, 
+            result.PageSize, 
+            result.CurrentPage, 
+            result.TotalPages 
+        }));
+
+        return OkResponse(result);
+    }
+
+    [HttpGet("unread-count")]
+    public async Task<ActionResult<ApiResponse<UnreadCountDto>>> GetUnreadCount()
+    {
+        var result = await Mediator.Send(new GetUnreadNotificationCountQuery());
+        return OkResponse(result);
     }
 
     [HttpPut("{id}/read")]
-    public async Task<ActionResult<ApiResponse<object>>> MarkAsRead([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> MarkAsRead([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Notification marked as read.");
+        var result = await Mediator.Send(new MarkNotificationReadCommand(id));
+        return OkResponse(result, "Notification marked as read.");
     }
 
     [HttpPut("read-all")]
-    public async Task<ActionResult<ApiResponse<object>>> MarkAllAsRead()
+    public async Task<ActionResult<ApiResponse<Unit>>> MarkAllAsRead()
     {
-        return OkResponse<object>(new { }, "All notifications marked as read.");
+        var result = await Mediator.Send(new MarkAllNotificationsReadCommand());
+        return OkResponse(result, "All notifications marked as read.");
     }
 }

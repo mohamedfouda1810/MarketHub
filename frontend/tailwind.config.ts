@@ -27,16 +27,16 @@ const config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          50: '#f5f7ff',
-          100: '#ebf0fe',
-          200: '#ced9fd',
-          300: '#b1c2fb',
-          400: '#7694f8',
-          500: '#3b66f5',
-          600: '#355cdc',
-          700: '#2c4db8',
-          800: '#233d93',
-          900: '#1d3278',
+          50: '#f0f4ff',
+          100: '#e1e9ff',
+          200: '#c7d6ff',
+          300: '#a3b8ff',
+          400: '#7a92ff',
+          500: '#5c73ff', // Soft vibrant blue
+          600: '#4a59ff',
+          700: '#3d47f5',
+          800: '#3239c7',
+          900: '#2d339e',
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -62,18 +62,28 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "#10b981",
+          foreground: "#ffffff",
+        },
+        warning: {
+          DEFAULT: "#f59e0b",
+          foreground: "#ffffff",
+        },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        xl: "1rem",
-        "2xl": "1.5rem",
+        lg: "1rem",
+        md: "0.75rem",
+        sm: "0.5rem",
+        xl: "1.25rem",
+        "2xl": "1.75rem",
+        "3xl": "2.25rem",
       },
       boxShadow: {
-        'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
-        'premium': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 12px -2px rgba(0, 0, 0, 0.03)',
+        'premium': '0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 10px 20px -10px rgba(0, 0, 0, 0.05)',
+        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)',
+        'glow': '0 0 20px rgba(92, 115, 255, 0.2)',
       },
       keyframes: {
         "accordion-down": {
@@ -91,6 +101,10 @@ const config = {
         "scale-in": {
           "0%": { opacity: "0", transform: "scale(0.95)" },
           "100%": { opacity: "1", transform: "scale(1)" }
+        },
+        "bounce-subtle": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" }
         }
       },
       animation: {
@@ -98,6 +112,7 @@ const config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.5s ease-out forwards",
         "scale-in": "scale-in 0.3s ease-out forwards",
+        "bounce-subtle": "bounce-subtle 2s ease-in-out infinite",
       },
     },
   },

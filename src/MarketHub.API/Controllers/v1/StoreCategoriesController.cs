@@ -2,6 +2,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
+using MarketHub.Application.Features.StoreCategories;
+using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
 
@@ -11,36 +13,42 @@ public class StoreCategoriesController : BaseController
 {
     [HttpGet("vendor/{vendorId}")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<object>>> GetVendorCategories([FromRoute] Guid vendorId)
+    public async Task<ActionResult<ApiResponse<List<StoreCategoryDto>>>> GetVendorCategories([FromRoute] Guid vendorId)
     {
-        return OkResponse<object>(new[] { new { Id = Guid.NewGuid(), Name = "Electronics" } });
+        var result = await Mediator.Send(new GetStoreCategoriesQuery(vendorId, null));
+        return OkResponse(result);
     }
 
     [HttpPost]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> CreateCategory([FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Guid>>> CreateCategory([FromBody] CreateStoreCategoryCommand command)
     {
-        return OkResponse<object>(new { Id = Guid.NewGuid() }, "Category created successfully.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Category created successfully.");
     }
 
     [HttpPut("{id}")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> UpdateCategory([FromRoute] Guid id, [FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> UpdateCategory([FromRoute] Guid id, [FromBody] UpdateStoreCategoryCommand command)
     {
-        return OkResponse<object>(new { }, "Category updated successfully.");
+        if (id != command.Id) return BadRequestResponse<Unit>(Unit.Value, "ID mismatch.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Category updated successfully.");
     }
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> DeleteCategory([FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<Unit>>> DeleteCategory([FromRoute] Guid id)
     {
-        return OkResponse<object>(new { }, "Category deleted successfully.");
+        var result = await Mediator.Send(new DeleteStoreCategoryCommand(id));
+        return OkResponse(result, "Category deleted successfully.");
     }
 
     [HttpPut("reorder")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> ReorderCategories([FromBody] object command)
+    public async Task<ActionResult<ApiResponse<Unit>>> ReorderCategories([FromBody] ReorderStoreCategoriesCommand command)
     {
-        return OkResponse<object>(new { }, "Categories reordered successfully.");
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Categories reordered successfully.");
     }
 }

@@ -62,6 +62,23 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
             return (items, total);
         }
 
+        public async Task<Product?> GetBySlugAsync(string vendorSlug, string slug, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.Include(p => p.Vendor)
+                               .FirstOrDefaultAsync(p => p.Vendor.StoreSlug == vendorSlug && p.Slug == slug, cancellationToken);
+        }
+
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetByVendorIdAsync(Guid vendorId, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.Where(p => p.VendorId == vendorId);
+            int total = await query.CountAsync(cancellationToken);
+            var items = await query.OrderByDescending(p => p.CreatedAt)
+                                   .Skip((page - 1) * pageSize)
+                                   .Take(pageSize)
+                                   .ToListAsync(cancellationToken);
+            return (items, total);
+        }
+
         public async Task<IEnumerable<Product>> GetRelatedProductsAsync(Guid productId, int limit)
         {
             var product = await GetByIdAsync(productId);

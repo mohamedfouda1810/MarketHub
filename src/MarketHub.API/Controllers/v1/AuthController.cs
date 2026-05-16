@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.Application.Features.Auth;
+using MarketHub.Application.Common.Interfaces;
 using MediatR;
 
 namespace MarketHub.API.Controllers.v1;

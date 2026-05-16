@@ -1,19 +1,20 @@
 using AutoMapper;
 using FluentValidation;
 using MediatR;
-using MarketHub.Application.Common.Models;
+using MarketHub.Shared;
+using MarketHub.Shared;
 
 namespace MarketHub.Application.Features.Coupons;
 
 // DTOs
 public record CouponValidationDto(bool IsValid, decimal DiscountAmount, string Message);
-public record CouponDto(string Id, string Code, decimal DiscountValue, string DiscountType, DateTime ExpiryDate, bool IsActive);
+public record CouponDto(Guid Id, string Code, decimal DiscountValue, string DiscountType, DateTime ExpiryDate, bool IsActive);
 
 // Commands & Queries
-public record ValidateCouponQuery(string Code, decimal CartTotal, string? VendorId) : IRequest<CouponValidationDto>;
-public record CreateCouponCommand(string Code, decimal DiscountValue, string DiscountType, DateTime ExpiryDate, int? UsageLimit, string? VendorId) : IRequest<string>;
-public record GetVendorCouponsQuery(PaginationParams PaginationParams) : IRequest<PagedList<CouponDto>>;
-public record DeactivateCouponCommand(string CouponId) : IRequest<Unit>;
+public record ValidateCouponQuery(string Code, decimal CartTotal, Guid? VendorId) : IRequest<CouponValidationDto>;
+public record CreateCouponCommand(string Code, decimal DiscountValue, string DiscountType, DateTime ExpiryDate, int? UsageLimit, Guid? VendorId) : IRequest<Guid>;
+public record GetVendorCouponsQuery(int PageNumber = 1, int PageSize = 10) : IRequest<PagedList<CouponDto>>;
+public record DeactivateCouponCommand(Guid CouponId) : IRequest<Unit>;
 
 // Validators
 public class CreateCouponCommandValidator : AbstractValidator<CreateCouponCommand>
@@ -28,13 +29,13 @@ public class CreateCouponCommandValidator : AbstractValidator<CreateCouponComman
 // Handlers
 public class CouponHandlers : 
     IRequestHandler<ValidateCouponQuery, CouponValidationDto>,
-    IRequestHandler<CreateCouponCommand, string>,
+    IRequestHandler<CreateCouponCommand, Guid>,
     IRequestHandler<GetVendorCouponsQuery, PagedList<CouponDto>>,
     IRequestHandler<DeactivateCouponCommand, Unit>
 {
-    public Task<CouponValidationDto> Handle(ValidateCouponQuery request, CancellationToken cancellationToken) => Task.FromResult(default(CouponValidationDto)!);
-    public Task<string> Handle(CreateCouponCommand request, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
-    public Task<PagedList<CouponDto>> Handle(GetVendorCouponsQuery request, CancellationToken cancellationToken) => Task.FromResult(new PagedList<CouponDto>());
+    public Task<CouponValidationDto> Handle(ValidateCouponQuery request, CancellationToken cancellationToken) => Task.FromResult(new CouponValidationDto(false, 0, "Invalid coupon"));
+    public Task<Guid> Handle(CreateCouponCommand request, CancellationToken cancellationToken) => Task.FromResult(Guid.NewGuid());
+    public Task<PagedList<CouponDto>> Handle(GetVendorCouponsQuery request, CancellationToken cancellationToken) => Task.FromResult(new PagedList<CouponDto>(new List<CouponDto>(), 0, 1, 10));
     public Task<Unit> Handle(DeactivateCouponCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
 }
 

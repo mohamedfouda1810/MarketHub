@@ -11,6 +11,7 @@ import { setCredentials } from '@/lib/store/authSlice';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock, Mail } from 'lucide-react';
+import { useLoginMutation } from '@/lib/api/authApi';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const dispatch = useDispatch();
+  const [login] = useLoginMutation();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -31,29 +33,29 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await login(data).unwrap();
       
-      if (data.email === 'vendor@example.com') {
+      // In a real app, the API would return user info. 
+      // If the API only returns tokens, we might need to call getCurrentUser.
+      // For now, assuming successful login redirects to correct dashboard based on a mock check or API response.
+      
+      if (data.email.includes('vendor')) {
         dispatch(setCredentials({
           user: { id: '1', email: data.email, role: 'Vendor', vendorId: 'v1' },
-          accessToken: 'dummy-token',
+          accessToken: result.accessToken,
         }));
-        document.cookie = "accessToken=dummy-token; path=/";
-        document.cookie = "userRole=Vendor; path=/";
         toast.success('Welcome back, Vendor!');
         router.push('/vendor/dashboard');
       } else {
         dispatch(setCredentials({
           user: { id: '2', email: data.email, role: 'Customer' },
-          accessToken: 'dummy-token',
+          accessToken: result.accessToken,
         }));
-        document.cookie = "accessToken=dummy-token; path=/";
-        document.cookie = "userRole=Customer; path=/";
         toast.success('Logged in successfully');
         router.push('/');
       }
-    } catch (error) {
-      toast.error('Invalid credentials');
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Invalid credentials');
     } finally {
       setIsLoading(false);
     }

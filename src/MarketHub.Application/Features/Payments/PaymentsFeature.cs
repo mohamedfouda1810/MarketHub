@@ -1,19 +1,20 @@
 using AutoMapper;
 using FluentValidation;
 using MediatR;
-using MarketHub.Application.Common.Models;
+using MarketHub.Shared;
+using MarketHub.Shared;
 
 namespace MarketHub.Application.Features.Payments;
 
 // DTOs
-public record PaymentInitDto(string TransactionId, string PaymentUrl);
-public record PaymentDto(string Id, string OrderId, decimal Amount, string Status, DateTime CreatedAt);
+public record PaymentInitDto(Guid TransactionId, string PaymentUrl, string? ClientSecret);
+public record PaymentDto(Guid Id, Guid OrderId, decimal Amount, string Status, DateTime CreatedAt);
 
 // Commands & Queries
-public record InitiatePaymentCommand(string OrderId, string Method, string ReturnUrl) : IRequest<PaymentInitDto>;
-public record ConfirmPaymentCommand(string TransactionId, object GatewayPayload) : IRequest<Unit>;
-public record RequestRefundCommand(string OrderId, string Reason, decimal? Amount) : IRequest<Unit>;
-public record GetPaymentHistoryQuery(PaginationParams PaginationParams) : IRequest<PagedList<PaymentDto>>;
+public record InitiatePaymentCommand(Guid OrderId, string Method, string ReturnUrl) : IRequest<PaymentInitDto>;
+public record ConfirmPaymentCommand(Guid TransactionId, object GatewayPayload) : IRequest<Unit>;
+public record RequestRefundCommand(Guid OrderId, string Reason, decimal? Amount) : IRequest<Unit>;
+public record GetPaymentHistoryQuery(int PageNumber = 1, int PageSize = 10) : IRequest<PagedList<PaymentDto>>;
 
 // Validators
 public class InitiatePaymentCommandValidator : AbstractValidator<InitiatePaymentCommand>
@@ -32,10 +33,10 @@ public class PaymentHandlers :
     IRequestHandler<RequestRefundCommand, Unit>,
     IRequestHandler<GetPaymentHistoryQuery, PagedList<PaymentDto>>
 {
-    public Task<PaymentInitDto> Handle(InitiatePaymentCommand request, CancellationToken cancellationToken) => Task.FromResult(default(PaymentInitDto)!);
+    public Task<PaymentInitDto> Handle(InitiatePaymentCommand request, CancellationToken cancellationToken) => Task.FromResult(new PaymentInitDto(Guid.NewGuid(), "", "pi_temp_secret"));
     public Task<Unit> Handle(ConfirmPaymentCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
     public Task<Unit> Handle(RequestRefundCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
-    public Task<PagedList<PaymentDto>> Handle(GetPaymentHistoryQuery request, CancellationToken cancellationToken) => Task.FromResult(new PagedList<PaymentDto>());
+    public Task<PagedList<PaymentDto>> Handle(GetPaymentHistoryQuery request, CancellationToken cancellationToken) => Task.FromResult(new PagedList<PaymentDto>(new List<PaymentDto>(), 0, 1, 10));
 }
 
 // Profile
