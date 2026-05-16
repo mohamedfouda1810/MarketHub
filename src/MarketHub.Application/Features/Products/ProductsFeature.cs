@@ -29,7 +29,7 @@ public record GetVendorProductsQuery(int PageNumber = 1, int PageSize = 10) : IR
 
 // Commands
 public record CreateProductCommand(string Name, string? Description, decimal Price, int StockQuantity, Guid StoreCategoryId) : IRequest<Guid>;
-public record UpdateProductCommand(Guid Id, string Name, string? Description, decimal Price, int StockQuantity) : IRequest<Unit>;
+public record UpdateProductCommand(Guid Id, string Name, string? Description, decimal Price, int StockQuantity, Guid StoreCategoryId) : IRequest<Unit>;
 public record PublishProductCommand(Guid Id) : IRequest<Unit>;
 public record ArchiveProductCommand(Guid Id) : IRequest<Unit>;
 public record AdjustStockCommand(Guid Id, int Quantity) : IRequest<Unit>;
@@ -111,9 +111,15 @@ public class ProductHandlers :
 
     public async Task<Unit> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
+        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+
         var product = await _unitOfWork.Products.GetByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Product", request.Id);
         
-        // Update logic here
+        if (product.VendorId != vendor.Id) throw new ForbiddenException("You do not have permission to update this product.");
+
+        product.UpdateDetails(request.Name, request.Description, request.Price, request.StockQuantity, request.StoreCategoryId);
         
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Unit.Value;
@@ -121,7 +127,14 @@ public class ProductHandlers :
 
     public async Task<Unit> Handle(PublishProductCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
+        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+
         var product = await _unitOfWork.Products.GetByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Product", request.Id);
+        
+        if (product.VendorId != vendor.Id) throw new ForbiddenException("You do not have permission to publish this product.");
+
         product.Publish();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Unit.Value;
@@ -129,7 +142,14 @@ public class ProductHandlers :
 
     public async Task<Unit> Handle(ArchiveProductCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
+        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+
         var product = await _unitOfWork.Products.GetByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Product", request.Id);
+        
+        if (product.VendorId != vendor.Id) throw new ForbiddenException("You do not have permission to archive this product.");
+
         product.Archive();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Unit.Value;
@@ -137,7 +157,14 @@ public class ProductHandlers :
 
     public async Task<Unit> Handle(AdjustStockCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
+        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+
         var product = await _unitOfWork.Products.GetByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Product", request.Id);
+        
+        if (product.VendorId != vendor.Id) throw new ForbiddenException("You do not have permission to adjust stock for this product.");
+
         product.AdjustStock(request.Quantity);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Unit.Value;
@@ -145,7 +172,14 @@ public class ProductHandlers :
 
     public async Task<Unit> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
+        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+
         var product = await _unitOfWork.Products.GetByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Product", request.Id);
+        
+        if (product.VendorId != vendor.Id) throw new ForbiddenException("You do not have permission to delete this product.");
+
         await _unitOfWork.Products.DeleteAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Unit.Value;

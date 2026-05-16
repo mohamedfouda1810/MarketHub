@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Package, Truck, CheckCircle2, ChevronRight, Search, Filter, ArrowLeft } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const orders = [
@@ -120,9 +120,4 @@ export default function OrdersPage() {
       </div>
     </div>
   );
-}
-
-// Helper function locally since we are in a new file
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }

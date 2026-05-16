@@ -39,5 +39,27 @@ namespace MarketHub.Infrastructure.Services
             var refund = await service.CreateAsync(options);
             return refund.Status == "succeeded";
         }
+
+        public async Task<bool> ProcessWebhookAsync(string json, string signature)
+        {
+            try
+            {
+                var stripeEvent = EventUtility.ConstructEvent(json, signature, _config["StripeSettings:WebhookSecret"]);
+                
+                // Handle the event
+                if (stripeEvent.Type == Events.PaymentIntentSucceeded)
+                {
+                    var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+                    // TODO: Update order status via MediatR or direct DB
+                    await Task.CompletedTask; // Placeholder for now
+                }
+                
+                return true;
+            }
+            catch (StripeException)
+            {
+                return false;
+            }
+        }
     }
 }

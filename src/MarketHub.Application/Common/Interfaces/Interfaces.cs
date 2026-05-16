@@ -27,6 +27,7 @@ public interface IPaymentService
 {
     Task<string> CreatePaymentIntentAsync(decimal amount, string currency = "usd");
     Task<bool> RefundAsync(string paymentIntentId);
+    Task<bool> ProcessWebhookAsync(string json, string signature);
 }
 
 public interface INotificationService

@@ -5,12 +5,20 @@ using MarketHub.Domain.Common;
 using System.Reflection;
 using MarketHub.Infrastructure.Identity;
 using System.Linq.Expressions;
+using MarketHub.Application.Common.Interfaces;
 
 namespace MarketHub.Infrastructure.Persistence;
 
 public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    private readonly ICurrentUserService _currentUserService;
+
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        ICurrentUserService currentUserService) : base(options) 
+    {
+        _currentUserService = currentUserService;
+    }
 
     public DbSet<Vendor> Vendors => Set<Vendor>();
     public DbSet<StoreCategory> StoreCategories => Set<StoreCategory>();
@@ -65,14 +73,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 case EntityState.Added:
                     entry.Entity.CreatedAt = DateTime.UtcNow;
                     entry.Entity.IsDeleted = false;
+                    if (entry.Entity is AuditableEntity auditableAdded)
+                    {
+                        auditableAdded.CreatedBy = _currentUserService.UserId?.ToString() ?? "System";
+                    }
                     break;
                 case EntityState.Modified:
                     entry.Entity.UpdateTimestamp();
+                    if (entry.Entity is AuditableEntity auditableModified)
+                    {
+                        auditableModified.UpdatedBy = _currentUserService.UserId?.ToString() ?? "System";
+                    }
                     break;
                 case EntityState.Deleted:
                     entry.State = EntityState.Modified;
                     entry.Entity.IsDeleted = true;
                     entry.Entity.DeletedAt = DateTime.UtcNow;
+                    if (entry.Entity is AuditableEntity auditableDeleted)
+                    {
+                        auditableDeleted.UpdatedBy = _currentUserService.UserId?.ToString() ?? "System";
+                    }
                     break;
             }
         }

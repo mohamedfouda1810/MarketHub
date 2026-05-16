@@ -11,17 +11,20 @@ namespace MarketHub.Infrastructure.Identity
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IEmailService _emailService;
         private readonly AppDbContext _context;
 
         public IdentityService(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IJwtTokenService jwtTokenService,
+            IEmailService emailService,
             AppDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtTokenService = jwtTokenService;
+            _emailService = emailService;
             _context = context;
         }
 
@@ -48,16 +51,44 @@ namespace MarketHub.Infrastructure.Identity
                 return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
+            // Check if email is confirmed
+            if (!await _userManager.IsEmailConfirmedAsync(user))
+            {
+                return (false, string.Empty, string.Empty, new[] { "Email not confirmed. Please check your inbox." });
+            }
+
             var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
             if (!result.Succeeded)
             {
                 return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
-            // check email confirmed if required
-            // if (!user.EmailConfirmed) ...
-
             return await GenerateTokensAsync(user, ipAddress);
+        }
+
+        public async Task<(bool Success, string[] Errors)> ConfirmEmailAsync(string userId, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return (false, new[] { "User not found." });
+            }
+
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            if (!result.Succeeded)
+            {
+                return (false, result.Errors.Select(e => e.Description).ToArray());
+            }
+
+            return (true, Array.Empty<string>());
+        }
+
+        public async Task<string> GenerateEmailConfirmationTokenAsync(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return string.Empty;
+
+            return await _userManager.GenerateEmailConfirmationTokenAsync(user);
         }
 
         public async Task<(bool Success, string AccessToken, string RefreshToken, string[] Errors)> RefreshTokenAsync(string token, string ipAddress)
@@ -88,6 +119,24 @@ namespace MarketHub.Infrastructure.Identity
         public async Task<UserDto?> GetUserByIdAsync(Guid userId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return null;
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? "Customer";
+
+            Guid? vendorId = null;
+            if (role == "Vendor")
+            {
+                var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                vendorId = vendor?.Id;
+            }
+
+            return new UserDto(user.Id.ToString(), user.Email!, user.UserName!, role, vendorId?.ToString());
+        }
+
+        public async Task<UserDto?> GetUserByEmailAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
             if (user == null) return null;
 
             var roles = await _userManager.GetRolesAsync(user);
@@ -147,7 +196,7 @@ namespace MarketHub.Infrastructure.Identity
                 if (vendor != null) vendorId = vendor.Id;
             }
 
-            var accessToken = _jwtTokenService.GenerateAccessToken(user, roles, vendorId);
+            var accessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email!, roles, vendorId);
             var refreshTokenString = _jwtTokenService.GenerateRefreshToken();
 
             var refreshToken = new RefreshToken

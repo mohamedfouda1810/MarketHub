@@ -40,6 +40,9 @@ export default function RegisterPage() {
     }
   });
 
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
@@ -57,14 +60,46 @@ export default function RegisterPage() {
           storeName: `${data.fullName}'s Store` // Default store name
         }).unwrap();
       }
-      toast.success('Account created successfully! Please sign in.');
-      router.push('/login');
+      setRegisteredEmail(data.email);
+      setIsVerificationSent(true);
+      toast.success('Account created! Please check your email.');
     } catch (error: any) {
       toast.error(error?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isVerificationSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-white rounded-[3rem] border border-muted-foreground/10 p-12 text-center shadow-soft"
+        >
+          <div className="w-20 h-20 bg-primary/5 rounded-[2rem] flex items-center justify-center text-primary mx-auto mb-8">
+            <Mail className="h-10 w-10" />
+          </div>
+          <h1 className="text-3xl font-black mb-4 tracking-tight">Verify your <span className="text-primary">Email</span></h1>
+          <p className="text-muted-foreground font-medium mb-10 leading-relaxed text-lg">
+            We&apos;ve sent a verification link to <span className="font-bold text-foreground">{registeredEmail}</span>. Please check your inbox and click the link to activate your account.
+          </p>
+          <div className="space-y-4">
+            <Link href="/login" className="btn-gradient w-full h-14 rounded-2xl flex items-center justify-center font-black text-lg">
+              Go to Sign In
+            </Link>
+            <button 
+              onClick={() => setIsVerificationSent(false)}
+              className="text-primary font-black text-sm hover:underline"
+            >
+              Back to Registration
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-background">

@@ -3,7 +3,6 @@ using FluentValidation;
 using MediatR;
 using MarketHub.Shared;
 using MarketHub.Application.Features.Products;
-using MarketHub.Shared;
 using MarketHub.Application.Common.Interfaces;
 
 namespace MarketHub.Application.Features.StoreCategories;

@@ -10,19 +10,22 @@ namespace MarketHub.Infrastructure.Persistence
         public IProductRepository Products { get; }
         public IOrderRepository Orders { get; }
         public ICustomerRepository Customers { get; }
+        public ICartRepository Carts { get; }
 
         public UnitOfWork(
             AppDbContext context,
             IVendorRepository vendors,
             IProductRepository products,
             IOrderRepository orders,
-            ICustomerRepository customers)
+            ICustomerRepository customers,
+            ICartRepository carts)
         {
             _context = context;
             Vendors = vendors;
             Products = products;
             Orders = orders;
             Customers = customers;
+            Carts = carts;
         }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

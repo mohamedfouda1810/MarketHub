@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.API.Filters;
 using MarketHub.Application.Features.Payments;
+using MarketHub.Application.Common.Interfaces;
 using MarketHub.Shared;
 using MediatR;
 
@@ -23,11 +24,16 @@ public class PaymentsController : BaseController
 
     [HttpPost("webhook/stripe")]
     [AllowAnonymous]
-    [ServiceFilter(typeof(ApiKeyAuthFilter))]
-    [ServiceFilter(typeof(IdempotencyFilter))]
     public async Task<IActionResult> StripeWebhook()
     {
-        // Webhook processing logic
+        var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
+        var signature = Request.Headers["Stripe-Signature"];
+
+        var paymentService = HttpContext.RequestServices.GetRequiredService<IPaymentService>();
+        var success = await paymentService.ProcessWebhookAsync(json, signature!);
+
+        if (!success) return BadRequest();
+
         return Ok();
     }
 

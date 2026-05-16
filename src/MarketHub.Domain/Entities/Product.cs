@@ -105,4 +105,14 @@ public class Product : AuditableEntity
 
         UpdateTimestamp();
     }
+
+    public void UpdateDetails(string name, string? description, decimal price, int stockQuantity, Guid storeCategoryId)
+    {
+        Name = name;
+        Description = description;
+        Price = price;
+        StockQuantity = stockQuantity;
+        StoreCategoryId = storeCategoryId;
+        UpdateTimestamp();
+    }
 }

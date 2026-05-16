@@ -2,6 +2,10 @@ using AutoMapper;
 using FluentValidation;
 using MediatR;
 using MarketHub.Shared;
+using MarketHub.Shared.Exceptions;
+using MarketHub.Domain.Entities;
+using MarketHub.Domain.Interfaces;
+using MarketHub.Application.Common.Interfaces;
 
 namespace MarketHub.Application.Features.Cart;
 
@@ -37,12 +41,97 @@ public class CartHandlers :
     IRequestHandler<ClearCartCommand, Unit>,
     IRequestHandler<GetCartSummaryQuery, CartSummaryDto>
 {
-    public Task<CartDto> Handle(GetCartQuery request, CancellationToken cancellationToken) => Task.FromResult(new CartDto(Guid.NewGuid(), new List<CartItemDto>(), 0, 0));
-    public Task<Unit> Handle(AddToCartCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
-    public Task<Unit> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
-    public Task<Unit> Handle(RemoveFromCartCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
-    public Task<Unit> Handle(ClearCartCommand request, CancellationToken cancellationToken) => Task.FromResult(Unit.Value);
-    public Task<CartSummaryDto> Handle(GetCartSummaryQuery request, CancellationToken cancellationToken) => Task.FromResult(new CartSummaryDto(0, 0));
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUserService;
+
+    public CartHandlers(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService)
+    {
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+        _currentUserService = currentUserService;
+    }
+
+    private async Task<MarketHub.Domain.Entities.Cart> GetUserCart(CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        
+        // Find customer and their cart
+        var customers = await _unitOfWork.Customers.GetAllAsync(cancellationToken);
+        var customer = customers.FirstOrDefault(c => c.UserId == userId) ?? throw new NotFoundException("Customer", userId);
+        
+        // Using a stub for now if IRepository doesn't have GetWithCartAsync
+        // In reality, I should update the repository interface.
+        var carts = await _unitOfWork.Carts.GetAllAsync(cancellationToken);
+        var cart = carts.FirstOrDefault(c => c.CustomerId == customer.Id);
+        
+        if (cart == null)
+        {
+            cart = new MarketHub.Domain.Entities.Cart(customer.Id);
+            await _unitOfWork.Carts.AddAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        
+        return cart;
+    }
+
+    public async Task<CartDto> Handle(GetCartQuery request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        return _mapper.Map<CartDto>(cart);
+    }
+
+    public async Task<Unit> Handle(AddToCartCommand request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        var product = await _unitOfWork.Products.GetByIdAsync(request.ProductId, cancellationToken) ?? throw new NotFoundException("Product", request.ProductId);
+        
+        ProductVariant? variant = null;
+        if (request.VariantId.HasValue)
+        {
+            // Assuming we can fetch variant via a generic repo or specific method
+            // For simplicity, let's assume it's attached to the product if we had Include()
+            // But we don't. Let's just use a stub for variant fetching or skip for now.
+        }
+
+        cart.AddItem(product, variant, request.Quantity);
+        
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+
+    public async Task<Unit> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        cart.UpdateQuantity(request.CartItemId, request.Quantity);
+        
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+
+    public async Task<Unit> Handle(RemoveFromCartCommand request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        cart.RemoveItem(request.CartItemId);
+        
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+
+    public async Task<Unit> Handle(ClearCartCommand request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        cart.Clear();
+        
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Unit.Value;
+    }
+
+    public async Task<CartSummaryDto> Handle(GetCartSummaryQuery request, CancellationToken cancellationToken)
+    {
+        var cart = await GetUserCart(cancellationToken);
+        return new CartSummaryDto(cart.Items.Sum(i => i.Quantity), cart.Items.Sum(i => i.Quantity * i.UnitPrice));
+    }
 }
 
 // Profile

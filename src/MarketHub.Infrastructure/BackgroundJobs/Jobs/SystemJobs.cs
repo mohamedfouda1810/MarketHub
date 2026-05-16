@@ -39,6 +39,8 @@ namespace MarketHub.Infrastructure.BackgroundJobs.Jobs
                 var totalSales = dailyOrders.Sum(o => o.TotalAmount);
                 var orderCount = dailyOrders.Count;
 
+                if (string.IsNullOrEmpty(vendor.StoreEmail)) continue;
+
                 _emailService.EnqueueEmail(
                     vendor.StoreEmail,
                     $"Daily Sales Report - {yesterday:d}",

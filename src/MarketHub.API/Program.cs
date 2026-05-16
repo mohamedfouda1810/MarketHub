@@ -47,6 +47,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 Window = TimeSpan.FromMinutes(1)
             }));
+
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
 });
 
 // 7. CORS
@@ -108,6 +119,21 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// Seed Database
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        await MarketHub.Infrastructure.Persistence.DbInitializer.SeedDataAsync(services);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding the database.");
+    }
+}
+
 // Configure the HTTP request pipeline.
 app.UseResponseCompression();
 
@@ -133,7 +159,7 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    // In production, configure an authorization filter to enforce RequireSuperAdmin or RequireAdmin
+    Authorization = new[] { new HangfireAuthorizationFilter() }
 });
 
 // Health check endpoints

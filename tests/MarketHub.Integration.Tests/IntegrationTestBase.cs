@@ -44,7 +44,10 @@ public class IntegrationTestBase : IAsyncLifetime
         HttpClient = _factory.CreateClient();
         ServiceProvider = _factory.Services;
 
-        _respawner = await Respawner.CreateAsync(_msSqlContainer.GetConnectionString(), new RespawnerOptions
+        using var connection = new Microsoft.Data.SqlClient.SqlConnection(_msSqlContainer.GetConnectionString());
+        await connection.OpenAsync();
+        
+        _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
         {
             TablesToIgnore = new Respawn.Graph.Table[] { "__EFMigrationsHistory" }
         });
@@ -52,7 +55,9 @@ public class IntegrationTestBase : IAsyncLifetime
 
     public async Task ResetDatabaseAsync()
     {
-        await _respawner.ResetAsync(_msSqlContainer.GetConnectionString());
+        using var connection = new Microsoft.Data.SqlClient.SqlConnection(_msSqlContainer.GetConnectionString());
+        await connection.OpenAsync();
+        await _respawner.ResetAsync(connection);
     }
 
     public async Task DisposeAsync()

@@ -57,6 +57,18 @@ public class Cart : BaseEntity
     }
 
     /// <summary>
+    /// Updates the quantity of a specific item in the cart.
+    /// </summary>
+    public void UpdateQuantity(Guid cartItemId, int quantity)
+    {
+        var item = _items.SingleOrDefault(i => i.Id == cartItemId);
+        if (item == null) throw new InvalidOperationException("Cart item not found.");
+        
+        item.UpdateQuantity(quantity);
+        UpdateTimestamp();
+    }
+
+    /// <summary>
     /// Clears all items from the cart.
     /// </summary>
     public void Clear()

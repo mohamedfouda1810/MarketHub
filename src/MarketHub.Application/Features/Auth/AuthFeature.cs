@@ -5,6 +5,7 @@ using MarketHub.Application.Common.Interfaces;
 using MarketHub.Domain.Entities;
 using MarketHub.Domain.Interfaces;
 using MarketHub.Domain.Enums;
+using MarketHub.Shared;
 using MarketHub.Shared.Exceptions;
 
 namespace MarketHub.Application.Features.Auth;
@@ -20,6 +21,8 @@ public record LoginCommand(string Email, string Password, string IpAddress) : IR
 public record RefreshTokenCommand(string Token, string IpAddress) : IRequest<LoginResponseDto>;
 public record ForgotPasswordCommand(string Email) : IRequest<AuthResponseDto>;
 public record ResetPasswordCommand(string Email, string Token, string NewPassword) : IRequest<AuthResponseDto>;
+public record ConfirmEmailCommand(string UserId, string Token) : IRequest<AuthResponseDto>;
+public record ResendConfirmationEmailCommand(string Email) : IRequest<AuthResponseDto>;
 public record GetCurrentUserQuery() : IRequest<UserDto>;
 
 // Validators
@@ -51,48 +54,93 @@ public class AuthHandlers :
     IRequestHandler<RefreshTokenCommand, LoginResponseDto>,
     IRequestHandler<ForgotPasswordCommand, AuthResponseDto>,
     IRequestHandler<ResetPasswordCommand, AuthResponseDto>,
+    IRequestHandler<ConfirmEmailCommand, AuthResponseDto>,
+    IRequestHandler<ResendConfirmationEmailCommand, AuthResponseDto>,
     IRequestHandler<GetCurrentUserQuery, UserDto>
 {
     private readonly IIdentityService _identityService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IEmailService _emailService;
 
     public AuthHandlers(
         IIdentityService identityService,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IEmailService emailService)
     {
         _identityService = identityService;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _emailService = emailService;
     }
 
     public async Task<AuthResponseDto> Handle(RegisterCustomerCommand request, CancellationToken cancellationToken)
     {
-        var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Customer.ToString());
-        
-        if (success)
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
         {
+            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Customer.ToString());
+            
+            if (!success)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return new AuthResponseDto(false, errors);
+            }
+
             var customer = new Customer(userId);
             await _unitOfWork.Customers.AddAsync(customer, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
 
-        return new AuthResponseDto(success, errors);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            // Send Confirmation Email
+            var token = await _identityService.GenerateEmailConfirmationTokenAsync(userId);
+            var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={Uri.EscapeDataString(token)}";
+            await _emailService.SendEmailAsync(request.Email, "Confirm your email", 
+                $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.", true);
+
+            return new AuthResponseDto(true, Array.Empty<string>());
+        }
+        catch (Exception)
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<AuthResponseDto> Handle(RegisterVendorCommand request, CancellationToken cancellationToken)
     {
-        var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Vendor.ToString());
-
-        if (success)
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
         {
-            var vendor = new Vendor(userId, request.StoreName, request.StoreName.ToLower().Replace(" ", "-"), request.StoreEmail);
+            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Vendor.ToString());
+
+            if (!success)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return new AuthResponseDto(false, errors);
+            }
+
+            var vendor = new Vendor(userId, request.StoreName, SlugHelper.Generate(request.StoreName), request.StoreEmail);
             await _unitOfWork.Vendors.AddAsync(vendor, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
 
-        return new AuthResponseDto(success, errors);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            // Send Confirmation Email
+            var token = await _identityService.GenerateEmailConfirmationTokenAsync(userId);
+            var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={Uri.EscapeDataString(token)}";
+            await _emailService.SendEmailAsync(request.Email, "Confirm your email", 
+                $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.", true);
+
+            return new AuthResponseDto(true, Array.Empty<string>());
+        }
+        catch (Exception)
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<LoginResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -117,6 +165,28 @@ public class AuthHandlers :
     {
         var (success, errors) = await _identityService.ResetPasswordAsync(request.Email, request.Token, request.NewPassword);
         return new AuthResponseDto(success, errors);
+    }
+
+    public async Task<AuthResponseDto> Handle(ConfirmEmailCommand request, CancellationToken cancellationToken)
+    {
+        var (success, errors) = await _identityService.ConfirmEmailAsync(request.UserId, request.Token);
+        return new AuthResponseDto(success, errors);
+    }
+
+    public async Task<AuthResponseDto> Handle(ResendConfirmationEmailCommand request, CancellationToken cancellationToken)
+    {
+        var userDto = await _identityService.GetUserByEmailAsync(request.Email);
+        if (userDto != null)
+        {
+            var userId = Guid.Parse(userDto.Id);
+            var token = await _identityService.GenerateEmailConfirmationTokenAsync(userId);
+            var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={Uri.EscapeDataString(token)}";
+            await _emailService.SendEmailAsync(request.Email, "Confirm your email", 
+                $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.", true);
+        }
+        
+        // Always return true to avoid revealing account existence
+        return new AuthResponseDto(true, Array.Empty<string>());
     }
 
     public async Task<UserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)

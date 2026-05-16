@@ -10,6 +10,7 @@ namespace MarketHub.API.Controllers.v1;
 
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/auth")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class AuthController : BaseController
 {
     [HttpPost("register/customer")]
@@ -99,6 +100,23 @@ public class AuthController : BaseController
         var result = await Mediator.Send(command);
         if (!result.Success) return BadRequestResponse<AuthResponseDto>(result, string.Join(", ", result.Errors));
         return OkResponse(result, "Password reset successfully.");
+    }
+
+    [HttpGet("confirm-email")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<AuthResponseDto>>> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+    {
+        var result = await Mediator.Send(new ConfirmEmailCommand(userId, token));
+        if (!result.Success) return BadRequestResponse<AuthResponseDto>(result, "Email confirmation failed.");
+        return OkResponse(result, "Email confirmed successfully.");
+    }
+
+    [HttpPost("resend-confirmation-email")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<AuthResponseDto>>> ResendConfirmationEmail([FromBody] ResendConfirmationEmailCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "If an account exists with that email, a new confirmation link has been sent.");
     }
 
     [HttpGet("me")]

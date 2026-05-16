@@ -11,7 +11,7 @@ public class PagedList<T>
     public int CurrentPage => PageNumber; // Alias for API controllers
     public int PageSize { get; }
 
-    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+    public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
     public bool HasNextPage => PageNumber < TotalPages;
     public bool HasPreviousPage => PageNumber > 1;
 

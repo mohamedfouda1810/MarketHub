@@ -55,7 +55,25 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Invalid credentials');
+      const errorMessage = error?.data?.message || 'Invalid credentials';
+      if (errorMessage.toLowerCase().includes('email not confirmed')) {
+        toast.error(
+          (t) => (
+            <span className="flex flex-col gap-2">
+              {errorMessage}
+              <button 
+                onClick={() => { toast.dismiss(t.id); router.push('/resend-verification'); }}
+                className="text-primary font-bold underline text-xs text-left"
+              >
+                Resend verification email?
+              </button>
+            </span>
+          ),
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

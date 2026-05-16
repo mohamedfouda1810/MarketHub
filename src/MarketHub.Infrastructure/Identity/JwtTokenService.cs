@@ -3,18 +3,11 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using MarketHub.Domain.Entities;
 using System.Security.Cryptography;
+using MarketHub.Application.Common.Interfaces;
 
 namespace MarketHub.Infrastructure.Identity
 {
-    public interface IJwtTokenService
-    {
-        string GenerateAccessToken(ApplicationUser user, IList<string> roles, Guid? vendorId);
-        string GenerateRefreshToken();
-        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
-    }
-
     public class JwtTokenService : IJwtTokenService
     {
         private readonly IConfiguration _config;
@@ -24,15 +17,15 @@ namespace MarketHub.Infrastructure.Identity
             _config = config;
         }
 
-        public string GenerateAccessToken(ApplicationUser user, IList<string> roles, Guid? vendorId)
+        public string GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles, Guid? vendorId = null)
         {
             var jwtSettings = _config.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new ArgumentNullException("JwtSettings:SecretKey is missing");
 
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email!),
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, email),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -82,7 +75,7 @@ namespace MarketHub.Infrastructure.Identity
                 ValidIssuer = jwtSettings["Issuer"],
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                ValidateLifetime = false // Here we are saying that we don't care about the token's expiration date
+                ValidateLifetime = false
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();

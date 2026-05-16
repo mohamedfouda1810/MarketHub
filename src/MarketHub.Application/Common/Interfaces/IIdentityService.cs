@@ -10,5 +10,8 @@ namespace MarketHub.Application.Common.Interfaces
         Task<UserDto?> GetUserByIdAsync(Guid userId);
         Task<(bool Success, string[] Errors)> ForgotPasswordAsync(string email);
         Task<(bool Success, string[] Errors)> ResetPasswordAsync(string email, string token, string newPassword);
+        Task<(bool Success, string[] Errors)> ConfirmEmailAsync(string userId, string token);
+        Task<string> GenerateEmailConfirmationTokenAsync(Guid userId);
+        Task<UserDto?> GetUserByEmailAsync(string email);
     }
 }

@@ -59,4 +59,9 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
             return await _dbSet.Include(c => c.Cart).ThenInclude(c => c.Items).FirstOrDefaultAsync(c => c.Id == customerId);
         }
     }
+
+    public class CartRepository : GenericRepository<Cart>, ICartRepository
+    {
+        public CartRepository(AppDbContext context) : base(context) { }
+    }
 }
