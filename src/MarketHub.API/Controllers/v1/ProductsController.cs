@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using MarketHub.API.Models;
 using MarketHub.Shared;
 using MarketHub.Application.Features.Products;
+using MarketHub.Application.Common.Interfaces;
+using MarketHub.Domain.Common;
 using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
@@ -14,9 +16,9 @@ public class ProductsController : BaseController
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> SearchProducts([FromQuery] string? searchTerm, [FromQuery] PaginationParams paginationParams)
+    public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> SearchProducts([FromQuery] string? searchTerm, [FromQuery] ProductFilters filters, [FromQuery] PaginationParams paginationParams)
     {
-        var query = new GetProductsQuery(searchTerm, null, paginationParams.PageNumber, paginationParams.PageSize);
+        var query = new GetProductsQuery(searchTerm, filters, paginationParams.PageNumber, paginationParams.PageSize);
         var result = await Mediator.Send(query);
         
         Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
@@ -116,16 +118,28 @@ public class ProductsController : BaseController
 
     [HttpPost("{id}/images")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> UploadProductImages([FromRoute] Guid id, List<IFormFile> images)
+    public async Task<ActionResult<ApiResponse<object>>> UploadProductImages([FromRoute] Guid id, List<IFormFile> images, [FromServices] IFileStorageService fileStorageService)
     {
-        // Image upload logic usually requires a service, stub for now
-        return OkResponse<object>(new { }, "Images uploaded successfully.");
+        if (images == null || images.Count == 0) return BadRequestResponse<object>(null, "No images uploaded.");
+
+        var imageUrls = new List<string>();
+        foreach (var image in images)
+        {
+            using var stream = image.OpenReadStream();
+            var url = await fileStorageService.UploadFileAsync(stream, image.FileName, image.ContentType);
+            imageUrls.Add(url);
+            
+            await Mediator.Send(new AddProductImageCommand(id, url));
+        }
+
+        return OkResponse<object>(new { ImageUrls = imageUrls }, "Images uploaded successfully.");
     }
 
-    [HttpDelete("images/{imageId}")]
+    [HttpDelete("{id}/images/{imageId}")]
     [Authorize(Policy = "RequireVendor")]
-    public async Task<ActionResult<ApiResponse<object>>> DeleteProductImage([FromRoute] Guid imageId)
+    public async Task<ActionResult<ApiResponse<object>>> DeleteProductImage([FromRoute] Guid id, [FromRoute] Guid imageId)
     {
+        await Mediator.Send(new DeleteProductImageCommand(id, imageId));
         return OkResponse<object>(new { }, "Image deleted successfully.");
     }
 }

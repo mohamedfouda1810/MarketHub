@@ -5,39 +5,62 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { useGetStoreEarningsQuery } from '@/lib/api/vendorApi';
+import { Loader2 } from 'lucide-react';
 
 const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC'];
 
-export const EarningsChart = () => {
+const EarningsChart = () => {
   const [range, setRange] = useState('30d');
   
-  // Dummy data simulating the API response
-  const earningsData = Array.from({ length: 30 }).map((_, i) => ({
-    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    revenue: Math.floor(Math.random() * 500) + 100
+  const getStartDate = () => {
+    const now = new Date();
+    if (range === '7d') now.setDate(now.getDate() - 7);
+    else if (range === '30d') now.setDate(now.getDate() - 30);
+    else if (range === '3m') now.setMonth(now.getMonth() - 3);
+    return now.toISOString();
+  };
+
+  const { data: earningsResult, isLoading } = useGetStoreEarningsQuery({ 
+    startDate: getStartDate(),
+    endDate: new Date().toISOString()
+  });
+
+  const earnings = earningsResult?.data;
+
+  // Transform data for charts
+  const earningsData = earnings?.transactions?.length ? earnings.transactions : Array.from({ length: 7 }).map((_, i) => ({
+    date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    revenue: 0
   }));
 
   const productData = [
-    { name: 'Laptop Pro', sales: 400 },
-    { name: 'Wireless Mouse', sales: 300 },
-    { name: 'Keyboard', sales: 300 },
-    { name: 'Monitor', sales: 200 },
-    { name: 'USB-C Hub', sales: 100 },
+    { name: 'Laptop Pro', sales: 0 },
+    { name: 'Wireless Mouse', sales: 0 },
+    { name: 'Keyboard', sales: 0 },
+    { name: 'Monitor', sales: 0 },
+    { name: 'USB-C Hub', sales: 0 },
   ];
 
   const statusData = [
-    { name: 'Delivered', value: 400 },
-    { name: 'Processing', value: 300 },
-    { name: 'Shipped', value: 300 },
-    { name: 'Cancelled', value: 100 },
+    { name: 'Delivered', value: earnings?.totalEarnings || 0 },
+    { name: 'Pending', value: earnings?.pendingClearance || 0 },
   ];
 
-  const formatCurrency = (value: number) => `$${value}`;
+  const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
+        <h2 className="text-2xl font-bold">Earnings Overview</h2>
         <select 
           className="border rounded px-3 py-1.5 text-sm"
           value={range}
@@ -66,7 +89,7 @@ export const EarningsChart = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg border shadow-sm">
-          <h3 className="font-semibold mb-6">Top Products</h3>
+          <h3 className="font-semibold mb-6">Store Performance</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={productData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -81,7 +104,7 @@ export const EarningsChart = () => {
         </div>
 
         <div className="bg-white p-6 rounded-lg border shadow-sm">
-          <h3 className="font-semibold mb-6">Order Status</h3>
+          <h3 className="font-semibold mb-6">Earnings Breakdown</h3>
           <div className="h-64 flex justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -108,3 +131,5 @@ export const EarningsChart = () => {
     </div>
   );
 };
+
+export default EarningsChart;

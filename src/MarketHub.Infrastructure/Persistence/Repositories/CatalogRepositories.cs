@@ -25,6 +25,11 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
             return await _dbSet.FirstOrDefaultAsync(v => v.StoreSlug == slug, cancellationToken);
         }
 
+        public async Task<Vendor?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.FirstOrDefaultAsync(v => v.UserId == userId, cancellationToken);
+        }
+
         public async Task<Vendor?> GetWithCategoriesAndProductsAsync(Guid vendorId)
         {
             return await _dbSet
@@ -55,6 +60,9 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
             
             if (filters.VendorId.HasValue)
                 query = query.Where(p => p.VendorId == filters.VendorId);
+
+            if (!string.IsNullOrEmpty(filters.VendorSlug))
+                query = query.Where(p => p.Vendor.StoreSlug == filters.VendorSlug);
                 
             if (filters.CategoryId.HasValue)
                 query = query.Where(p => p.CategoryId == filters.CategoryId);
@@ -114,6 +122,19 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
         public async Task<IReadOnlyList<Product>> GetByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
         {
             return await _dbSet.Where(p => p.CategoryId == categoryId).ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<Product>> GetFeaturedAsync(int count, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Include(p => p.Vendor)
+                .Include(p => p.Images)
+                .Include(p => p.Reviews)
+                .Where(p => p.Status == Domain.Enums.ProductStatus.Active)
+                .OrderByDescending(p => p.Reviews.Any() ? p.Reviews.Average(r => r.Rating) : 0)
+                .ThenByDescending(p => p.CreatedAt)
+                .Take(count)
+                .ToListAsync(cancellationToken);
         }
     }
 }

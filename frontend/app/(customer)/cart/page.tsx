@@ -3,18 +3,40 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
 import { removeFromCart, updateQuantity, clearCart } from '@/lib/store/cartSlice';
-import { Minus, Plus, ShoppingBag, Trash2, ArrowRight, ArrowLeft, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, Trash2, ArrowRight, ArrowLeft, ShieldCheck, Truck, RefreshCw, Tag, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 
 export default function CartPage() {
   const dispatch = useDispatch();
   const { items } = useSelector((state: RootState) => state.cart);
+  const [coupon, setCoupon] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
+  const discount = appliedCoupon ? 0.1 : 0; // 10% mock discount
 
   const cartTotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartCount = items.reduce((count, item) => count + item.quantity, 0);
+  const discountAmount = cartTotal * discount;
+  const finalTotal = cartTotal - discountAmount;
+
+  const handleApplyCoupon = async () => {
+    if (!coupon.trim()) return;
+    setIsApplying(true);
+    setCouponError('');
+    await new Promise(r => setTimeout(r, 700)); // simulate API
+    if (coupon.toUpperCase() === 'SAVE10') {
+      setAppliedCoupon(coupon.toUpperCase());
+      setCoupon('');
+    } else {
+      setCouponError('Invalid coupon code. Try SAVE10.');
+    }
+    setIsApplying(false);
+  };
 
   if (items.length === 0) {
     return (
@@ -121,7 +143,67 @@ export default function CartPage() {
             <div className="bg-white rounded-[2.5rem] p-8 border border-muted-foreground/10 shadow-soft sticky top-32">
               <h2 className="text-2xl font-black mb-8">Order <span className="text-primary">Summary</span></h2>
               
+              {/* Coupon Code */}
+              <div className="mb-6 pb-6 border-b border-muted/30">
+                <p className="text-sm font-black mb-3 flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-emerald-600" /> Coupon Code
+                </p>
+                <AnimatePresence mode="wait">
+                  {appliedCoupon ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-3"
+                    >
+                      <span className="text-sm font-black text-emerald-700">✓ {appliedCoupon} — 10% off!</span>
+                      <button onClick={() => { setAppliedCoupon(null); }} className="text-muted-foreground hover:text-rose-500 transition-colors">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+                      <input
+                        value={coupon}
+                        onChange={e => { setCoupon(e.target.value); setCouponError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                        placeholder="Enter code…"
+                        className={`flex-1 h-11 rounded-xl border px-4 text-sm font-medium outline-none transition-all ${
+                          couponError ? 'border-rose-400 bg-rose-500/5 focus:ring-2 focus:ring-rose-400/20' : 'border-muted bg-muted/40 focus:border-primary/30 focus:ring-2 focus:ring-primary/10'
+                        }`}
+                      />
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={isApplying || !coupon.trim()}
+                        className="h-11 px-4 rounded-xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {isApplying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {couponError && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-rose-500 font-bold mt-2 ml-1">
+                    {couponError}
+                  </motion.p>
+                )}
+              </div>
+
               <div className="space-y-4 mb-8 pb-8 border-b border-muted">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-bold">Subtotal</span>
+                  <span className="font-black">{formatPrice(cartTotal)}</span>
+                </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-emerald-600 font-bold flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Discount (10%)</span>
+                    <span className="font-black text-emerald-600">- {formatPrice(discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-bold">Shipping</span>
+                  <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded-lg uppercase">At checkout</span>
+                </div>
+              </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground font-bold">Subtotal</span>
                   <span className="font-black">{formatPrice(cartTotal)}</span>
@@ -138,7 +220,7 @@ export default function CartPage() {
 
               <div className="flex justify-between items-center mb-8">
                 <span className="font-black text-xl">Order Total</span>
-                <span className="font-black text-3xl text-primary">{formatPrice(cartTotal)}</span>
+                <span className="font-black text-3xl text-primary">{formatPrice(finalTotal)}</span>
               </div>
 
               <Link 

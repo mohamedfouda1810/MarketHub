@@ -2,6 +2,13 @@
 
 A full-stack multi-vendor e-commerce platform built with ASP.NET Core 8 + Next.js 14, following Clean Architecture principles.
 
+## Recent Features
+
+- **Auth Persistence:** Login state now persists across page refreshes using HttpOnly cookies.
+- **Profile Management:** New profile page for updating user information and profile pictures.
+- **Admin Dashboard:** Direct access to administrative tools for authorized users.
+- **Image Uploads:** Fully implemented product and profile image uploads with cloud storage support.
+
 ## Architecture
 
 ```

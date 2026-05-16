@@ -1,120 +1,290 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ShoppingCart, Search, User as UserIcon, Bell, Menu, Sun, Moon } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ShoppingCart, Search, User as UserIcon, Bell, Menu, X, Store, Layers, Grid3x3, LayoutDashboard } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
 import { toggleCart } from '@/lib/store/cartSlice';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, KeyboardEvent } from 'react';
+
+const NAV_LINKS = [
+  { name: 'Stores',      href: '/stores',     icon: Store },
+  { name: 'Products',    href: '/products',   icon: Layers },
+  { name: 'Categories',  href: '/categories', icon: Grid3x3 },
+];
 
 export default function Header() {
   const dispatch = useDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  const { setTheme, theme } = useTheme();
-  const pathname = usePathname();
 
-  const navLinks = [
-    { name: 'Stores', href: '/stores' },
-    { name: 'Products', href: '/products' },
-  ];
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // ✅ FIX: Search now navigates to /products?search=<term> on Enter
+  const handleSearch = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchValue.trim()) {
+      router.push(`/products?search=${encodeURIComponent(searchValue.trim())}`);
+      setSearchValue('');
+      searchRef.current?.blur();
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full glass border-b shadow-sm transition-all duration-300">
-      <div className="container flex h-20 items-center justify-between px-4 md:px-8">
-        <div className="flex items-center gap-8 md:gap-12">
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold text-2xl group-hover:rotate-6 transition-transform">
+    <>
+      <header className={cn(
+        'sticky top-0 z-50 w-full transition-all duration-300',
+        isScrolled ? 'h-16 bg-white/90 backdrop-blur-xl shadow-soft border-b border-muted/30' : 'h-20 bg-white/70 backdrop-blur-md'
+      )}>
+        <div className="container h-full flex items-center justify-between px-4 md:px-8 gap-6">
+
+          {/* ── Logo ─────────────────────────────────── */}
+          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
+            <motion.div
+              whileHover={{ rotate: 8, scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-black text-lg shadow-glow"
+            >
               M
-            </div>
-            <span className="inline-block font-extrabold text-2xl tracking-tight text-foreground">
-              Market<span className="text-primary">Hub</span>
+            </motion.div>
+            <span className="font-black text-2xl tracking-tighter text-foreground hidden sm:block">
+              Market<span className="text-gradient">Hub</span>
             </span>
           </Link>
-          
-          <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link 
-                key={link.href}
-                href={link.href} 
-                className={cn(
-                  "text-sm font-semibold transition-all hover:text-primary relative py-1",
-                  pathname === link.href ? "text-primary after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-primary" : "text-muted-foreground"
-                )}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
-        </div>
 
-        <div className="flex-1 md:flex-none flex items-center justify-end gap-3 md:gap-6">
-          <div className="hidden md:flex items-center relative w-full max-w-[280px] xl:max-w-[400px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* ── Nav Links (desktop) ───────────────────── */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {NAV_LINKS.map(({ name, href }) => {
+              const isActive = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-200',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  )}
+                >
+                  {name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* ── Search Bar (desktop) ──────────────────── */}
+          <div className="hidden lg:flex items-center relative group flex-1 max-w-sm xl:max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
             <input
+              ref={searchRef}
               type="search"
-              placeholder="Search unique products..."
-              className="flex h-11 w-full rounded-2xl border border-muted-foreground/20 bg-muted/30 px-10 py-2 text-sm transition-all focus:bg-background focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none"
+              value={searchValue}
+              onChange={e => setSearchValue(e.target.value)}
+              onKeyDown={handleSearch}
+              placeholder="Search products… (Enter)"
+              className="h-11 w-full rounded-2xl border border-muted/40 bg-muted/40 pl-11 pr-4 text-sm font-medium focus:bg-white focus:border-primary/30 focus:ring-4 focus:ring-primary/8 transition-all outline-none"
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden xl:flex items-center gap-1">
-              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                <span className="text-xs">⌘</span>K
-              </kbd>
-            </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4 border-l pl-4 md:pl-6">
+          {/* ── Right Actions ─────────────────────────── */}
+          <div className="flex items-center gap-2">
+
             {isAuthenticated ? (
               <>
-                <Link href="/account/notifications" className="p-2.5 rounded-xl hover:bg-accent/50 transition-colors relative group">
-                  <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                  <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
-                </Link>
-                <Link 
-                  href={user?.role === 'Vendor' ? '/vendor/dashboard' : '/orders'} 
-                  className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center hover:ring-2 hover:ring-primary/20 transition-all overflow-hidden"
+                {/* Notifications with pulse-dot animation */}
+                <Link
+                  href="/account/notifications"
+                  className="relative p-2.5 rounded-xl hover:bg-muted/60 transition-colors group"
+                  title="Notifications"
                 >
-                  <UserIcon className="h-5 w-5 text-muted-foreground" />
+                  <Bell className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  {/* Animated notification dot */}
+                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 border border-white animate-[pulse-dot_2s_ease-in-out_infinite]" />
+                </Link>
+
+                {/* Profile link */}
+                <Link
+                  href={user?.role === 'Vendor' ? '/vendor/dashboard' : user?.role === 'Admin' || user?.role === 'SuperAdmin' ? '/admin/dashboard' : '/account/profile'}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted/60 transition-colors group"
+                  title="Account"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 border border-primary/20 flex items-center justify-center">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="hidden xl:block text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors max-w-[80px] truncate">
+                    {user?.fullName?.split(' ')[0] ?? 'Account'}
+                  </span>
                 </Link>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Link 
-                  href="/login" 
-                  className="hidden sm:inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="h-9 px-4 rounded-xl text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all flex items-center"
                 >
                   Sign In
                 </Link>
-                <Link 
-                  href="/register" 
-                  className="hidden sm:inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                <Link
+                  href="/register"
+                  className="h-9 px-4 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 hover:shadow-glow transition-all flex items-center"
                 >
-                  Sign Up
+                  Join Free
                 </Link>
               </div>
             )}
 
-            <button 
-              onClick={() => dispatch(toggleCart())} 
-              className="p-2.5 rounded-xl hover:bg-accent/50 transition-colors relative group ml-1"
+            {/* Cart */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => dispatch(toggleCart())}
+              className="relative p-2.5 rounded-xl hover:bg-muted/60 transition-colors group"
+              title="Cart"
             >
-              <ShoppingCart className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold border-2 border-background shadow-sm">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-            
-            <button className="p-2.5 lg:hidden rounded-xl hover:bg-accent/50 transition-colors">
-              <Menu className="h-6 w-6" />
+              <ShoppingCart className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <AnimatePresence>
+                {cartCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center font-black border border-white shadow-rose-glow"
+                  >
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileOpen(o => !o)}
+              className="p-2.5 lg:hidden rounded-xl hover:bg-muted/60 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* ── Mobile Menu Drawer ────────────────────────── */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-xl shadow-premium z-50 lg:hidden flex flex-col"
+            >
+              {/* Drawer header */}
+              <div className="flex items-center justify-between p-6 border-b border-muted/30">
+                <span className="font-black text-xl tracking-tighter">
+                  Market<span className="text-gradient">Hub</span>
+                </span>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="p-2 rounded-xl hover:bg-muted/60 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Mobile search */}
+              <div className="p-4 border-b border-muted/20">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="search"
+                    placeholder="Search products…"
+                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-muted/50 border-none text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        router.push(`/products?search=${encodeURIComponent(e.currentTarget.value.trim())}`);
+                        setMobileOpen(false);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Nav links */}
+              <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+                {NAV_LINKS.map(({ name, href, icon: Icon }) => {
+                  const isActive = pathname.startsWith(href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {name}
+                    </Link>
+                  );
+                })}
+
+                {isAuthenticated && (
+                  <Link
+                    href={user?.role === 'Vendor' ? '/vendor/dashboard' : '/account/profile'}
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all mt-2 border-t border-muted/30 pt-4"
+                  >
+                    <LayoutDashboard className="h-5 w-5" />
+                    {user?.role === 'Vendor' ? 'Vendor Dashboard' : 'My Account'}
+                  </Link>
+                )}
+              </nav>
+
+              {/* CTA footer */}
+              {!isAuthenticated && (
+                <div className="p-4 border-t border-muted/30 flex flex-col gap-3">
+                  <Link href="/login" className="w-full h-12 rounded-2xl border-2 border-muted font-bold text-sm flex items-center justify-center hover:border-primary/30 hover:text-primary transition-all">
+                    Sign In
+                  </Link>
+                  <Link href="/register" className="w-full h-12 rounded-2xl bg-primary text-white font-bold text-sm flex items-center justify-center hover:bg-primary/90 transition-all">
+                    Create Account
+                  </Link>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

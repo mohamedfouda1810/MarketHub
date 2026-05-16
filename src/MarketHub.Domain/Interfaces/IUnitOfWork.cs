@@ -11,6 +11,8 @@ public interface IUnitOfWork : IDisposable
     ICustomerRepository Customers { get; }
     ICartRepository Carts { get; }
     IAddressRepository Addresses { get; }
+    IUserRepository Users { get; }
+    IStoreCategoryRepository StoreCategories { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

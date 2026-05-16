@@ -46,13 +46,63 @@ public static class DbInitializer
         await CreateCustomerAsync(userManager, context, "customer3@markethub.com", "Customer123!", "Customer Three");
         await CreateCustomerAsync(userManager, context, "customer4@markethub.com", "Customer123!", "Customer Four");
         await CreateCustomerAsync(userManager, context, "customer5@markethub.com", "Customer123!", "Customer Five");
+
+        // Seed Categories and Products
+        await SeedCatalogAsync(context);
+    }
+
+    private static async Task SeedCatalogAsync(AppDbContext context)
+    {
+        if (await context.StoreCategories.AnyAsync()) return;
+
+        var categories = new List<StoreCategory>
+        {
+            // StoreCategory(vendorId, name, slug, parentCategoryId?) — Guid.Empty = platform-level category
+            new StoreCategory(Guid.Empty, "Electronics",   "electronic-gadgets", null),
+            new StoreCategory(Guid.Empty, "Fashion",       "fashion-apparel",    null),
+            new StoreCategory(Guid.Empty, "Home & Garden", "home-garden",        null),
+            new StoreCategory(Guid.Empty, "Sports",        "sports-outdoors",    null)
+        };
+
+        await context.StoreCategories.AddRangeAsync(categories);
+        await context.SaveChangesAsync();
+
+        var vendors = await context.Vendors.ToListAsync();
+        var electronics = categories.First(c => c.Name == "Electronics");
+        var fashion = categories.First(c => c.Name == "Fashion");
+
+        foreach (var vendor in vendors)
+        {
+            var products = new List<Product>
+            {
+                new Product(vendor.Id, electronics.Id, $"{vendor.StoreName} Laptop Pro",       SlugHelper.Generate($"{vendor.StoreName} Laptop Pro"),       1299.99m, 50),
+                new Product(vendor.Id, electronics.Id, $"{vendor.StoreName} Wireless Mouse",   SlugHelper.Generate($"{vendor.StoreName} Wireless Mouse"),   49.99m,   200),
+                new Product(vendor.Id, fashion.Id,     $"{vendor.StoreName} Essential T-Shirt", SlugHelper.Generate($"{vendor.StoreName} Essential T-Shirt"), 24.99m,   100)
+            };
+
+            // ✅ Description has private setter — use UpdateDetails after construction
+            products[0].UpdateDetails(products[0].Name, "A powerful laptop for professionals.",      products[0].Price, products[0].StockQuantity, electronics.Id);
+            products[1].UpdateDetails(products[1].Name, "Ergonomic wireless mouse.",                 products[1].Price, products[1].StockQuantity, electronics.Id);
+            products[2].UpdateDetails(products[2].Name, "Comfortable tee from organic cotton.",      products[2].Price, products[2].StockQuantity, fashion.Id);
+
+            // Set some images
+            foreach (var p in products)
+            {
+                p.AddImage("https://placehold.co/600x400/png?text=Product+Image", true);
+                p.Publish();
+            }
+
+            await context.Products.AddRangeAsync(products);
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private static async Task CreateAdminAsync(UserManager<ApplicationUser> userManager, AppDbContext context, string email, string password, string fullName)
     {
         if (await userManager.FindByEmailAsync(email) == null)
         {
-            var appUser = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var appUser = new ApplicationUser { UserName = email, Email = email, FullName = fullName, EmailConfirmed = true };
             var result = await userManager.CreateAsync(appUser, password);
             if (result.Succeeded)
             {
@@ -72,7 +122,7 @@ public static class DbInitializer
     {
         if (await userManager.FindByEmailAsync(email) == null)
         {
-            var appUser = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var appUser = new ApplicationUser { UserName = email, Email = email, FullName = fullName, EmailConfirmed = true };
             var result = await userManager.CreateAsync(appUser, password);
             if (result.Succeeded)
             {
@@ -96,7 +146,7 @@ public static class DbInitializer
     {
         if (await userManager.FindByEmailAsync(email) == null)
         {
-            var appUser = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var appUser = new ApplicationUser { UserName = email, Email = email, FullName = fullName, EmailConfirmed = true };
             var result = await userManager.CreateAsync(appUser, password);
             if (result.Succeeded)
             {

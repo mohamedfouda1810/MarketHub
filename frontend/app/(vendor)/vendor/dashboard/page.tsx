@@ -1,17 +1,29 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { DollarSign, ShoppingBag, Package, Star, TrendingUp, ArrowUpRight, ChevronRight, Bell } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, Star, TrendingUp, ArrowUpRight, Bell, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EarningsChart from '@/components/dashboard/EarningsChart';
+import { useGetStoreDashboardQuery } from '@/lib/api/vendorApi';
 
 export default function VendorDashboard() {
+  const { data: dashboardResult, isLoading, error } = useGetStoreDashboardQuery();
+  const dashboard = dashboardResult?.data;
+
   const stats = [
-    { name: 'Total Revenue', value: '$45,231.89', change: '+20.1%', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { name: 'Total Orders', value: '2,350', change: '+15.2%', icon: ShoppingBag, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { name: 'Active Products', value: '124', change: '+3', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { name: 'Avg. Rating', value: '4.8', change: '+0.2', icon: Star, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { name: 'Total Revenue', value: dashboard ? `$${dashboard.totalRevenue.toLocaleString()}` : '$0', change: '+0%', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { name: 'Total Orders', value: dashboard ? dashboard.totalOrders.toString() : '0', change: '+0%', icon: ShoppingBag, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { name: 'Pending Orders', value: dashboard ? dashboard.pendingOrders.toString() : '0', change: 'New', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { name: 'Total Sales', value: dashboard ? `$${dashboard.totalSales.toLocaleString()}` : '$0', change: '+0%', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -85,23 +97,33 @@ export default function VendorDashboard() {
             <button className="text-sm font-bold text-primary hover:underline">View All</button>
           </div>
           <div className="space-y-6">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between group cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center font-bold text-xs">
-                    #{1024 + i}
+            {dashboard?.recentOrders && dashboard.recentOrders.length > 0 ? (
+              dashboard.recentOrders.map((order: any) => (
+                <div key={order.id} className="flex items-center justify-between group cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center font-bold text-xs">
+                      #{order.orderNumber.slice(-4)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black group-hover:text-primary transition-colors">Order {order.orderNumber}</p>
+                      <p className="text-xs text-muted-foreground font-medium">{new Date(order.createdAt).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-black group-hover:text-primary transition-colors">Order #ORD-{1000 + i}</p>
-                    <p className="text-xs text-muted-foreground font-medium">2 mins ago</p>
+                  <div className="text-right">
+                    <p className="text-sm font-black">${order.totalAmount}</p>
+                    <p className={cn(
+                      "text-[10px] font-black uppercase px-2 py-0.5 rounded-md",
+                      order.status === 'Paid' || order.status === 'Delivered' ? "text-emerald-500 bg-emerald-50" : "text-amber-500 bg-amber-50"
+                    )}>{order.status}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black">$129.00</p>
-                  <p className="text-[10px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">Paid</p>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <ShoppingBag className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+                <p className="text-muted-foreground font-bold">No orders yet.</p>
               </div>
-            ))}
+            )}
           </div>
           <button className="w-full mt-8 py-4 rounded-2xl bg-muted/50 font-black text-sm flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-all">
             See Performance Report <ArrowUpRight className="h-4 w-4" />

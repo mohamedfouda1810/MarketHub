@@ -3,13 +3,14 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 import { RootState } from '../store';
 import { logout, setCredentials } from '../store/authSlice';
 
-// Mutex to prevent multiple simultaneous refresh attempts
-// Building a simple Promise-based mutex to avoid external dependency:
+// ✅ FIX: Proper Promise-based mutex with a real waitForUnlock method.
+// The old code used `mutex.waitForUnlock?.()` but the method didn't exist,
+// causing the optional chain to silently return undefined — breaking concurrent 401 retry protection.
 class SimpleMutex {
   private _locked = false;
   private _queue: Array<() => void> = [];
 
-  async acquire() {
+  async acquire(): Promise<() => void> {
     if (!this._locked) {
       this._locked = true;
       return () => this.release();
@@ -22,14 +23,27 @@ class SimpleMutex {
     });
   }
 
-  release() {
+  release(): void {
     this._locked = false;
     const next = this._queue.shift();
     if (next) next();
   }
 
-  isLocked() {
+  isLocked(): boolean {
     return this._locked;
+  }
+
+  // ✅ FIX: Proper waitForUnlock — resolves when mutex is free without acquiring it
+  waitForUnlock(): Promise<void> {
+    if (!this._locked) return Promise.resolve();
+    return new Promise<void>(resolve => {
+      const originalRelease = this.release.bind(this);
+      this.release = () => {
+        originalRelease();
+        this.release = originalRelease;
+        resolve();
+      };
+    });
   }
 }
 
@@ -37,6 +51,7 @@ const mutex = new SimpleMutex();
 
 const baseQuery = fetchBaseQuery({
   baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7001/api/v1',
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
     if (token) {
@@ -51,7 +66,9 @@ export const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, Fetch
   api,
   extraOptions
 ) => {
-  await mutex.waitForUnlock?.() || Promise.resolve(); // Not strictly needed with our custom mutex, we just rely on waiting
+  // Wait if a refresh is already in progress
+  await mutex.waitForUnlock();
+
   let result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
@@ -59,36 +76,28 @@ export const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, Fetch
       const release = await mutex.acquire();
       try {
         const refreshResult = await baseQuery(
-          {
-            url: '/auth/refresh-token',
-            method: 'POST',
-            // Cookies (including HttpOnly refresh token) will be sent automatically if we configure credentials
-          },
+          { url: '/auth/refresh-token', method: 'POST' },
           api,
           extraOptions
         );
 
         if (refreshResult.data) {
-          const { data } = refreshResult.data as any; // ApiResponse<T>
-          api.dispatch(setCredentials({ 
-            accessToken: data.token, 
-            user: (api.getState() as RootState).auth.user 
+          const { data } = refreshResult.data as any;
+          api.dispatch(setCredentials({
+            accessToken: data.accessToken,
+            user: (api.getState() as RootState).auth.user ?? undefined,
           }));
-          
+          // Retry the original request with new token
           result = await baseQuery(args, api, extraOptions);
         } else {
           api.dispatch(logout());
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
         }
       } finally {
         release();
       }
     } else {
-      // wait until the mutex is available without locking it
-      const release = await mutex.acquire();
-      release();
+      // Another request is already refreshing — wait for it then retry
+      await mutex.waitForUnlock();
       result = await baseQuery(args, api, extraOptions);
     }
   }
@@ -99,6 +108,6 @@ export const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, Fetch
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Product', 'Order', 'Cart', 'Review', 'Vendor', 'Notification', 'Coupon'],
+  tagTypes: ['Product', 'Order', 'Cart', 'Review', 'Vendor', 'Notification', 'Coupon', 'User'],
   endpoints: () => ({}),
 });

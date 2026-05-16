@@ -5,18 +5,20 @@ using MarketHub.Application.Common.Interfaces;
 using MarketHub.Domain.Entities;
 using MarketHub.Domain.Interfaces;
 using MarketHub.Domain.Enums;
+using MarketHub.Domain.Common;
 using MarketHub.Shared;
 using MarketHub.Shared.Exceptions;
+using DomainCart = MarketHub.Domain.Entities.Cart;
 
 namespace MarketHub.Application.Features.Auth;
 
 // DTOs
-public record LoginResponseDto(string AccessToken, string RefreshToken, string[] Errors);
+public record LoginResponseDto(string AccessToken, string RefreshToken, string Role, string[] Errors);
 public record AuthResponseDto(bool Success, string[] Errors);
 
 // Commands & Queries
-public record RegisterCustomerCommand(string Email, string Password, string FullName, string PhoneNumber) : IRequest<AuthResponseDto>;
-public record RegisterVendorCommand(string Email, string Password, string FullName, string StoreName, string StoreDescription, string StoreEmail) : IRequest<AuthResponseDto>;
+public record RegisterCustomerCommand(string Email, string Password, string FullName, string? PhoneNumber = null) : IRequest<AuthResponseDto>;
+public record RegisterVendorCommand(string Email, string Password, string FullName, string StoreName, string? StoreDescription = null, string? StoreEmail = null) : IRequest<AuthResponseDto>;
 public record LoginCommand : IRequest<LoginResponseDto>
 {
     public string Email { get; init; } = string.Empty;
@@ -29,6 +31,7 @@ public record ResetPasswordCommand(string Email, string Token, string NewPasswor
 public record ConfirmEmailCommand(string UserId, string Token) : IRequest<AuthResponseDto>;
 public record ResendConfirmationEmailCommand(string Email) : IRequest<AuthResponseDto>;
 public record GetCurrentUserQuery() : IRequest<UserDto>;
+public record UpdateProfileCommand(string FullName) : IRequest<AuthResponseDto>;
 
 // Validators
 public class RegisterCustomerCommandValidator : AbstractValidator<RegisterCustomerCommand>
@@ -36,7 +39,7 @@ public class RegisterCustomerCommandValidator : AbstractValidator<RegisterCustom
     public RegisterCustomerCommandValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(6);
         RuleFor(x => x.FullName).NotEmpty().MaximumLength(100);
     }
 }
@@ -46,7 +49,7 @@ public class RegisterVendorCommandValidator : AbstractValidator<RegisterVendorCo
     public RegisterVendorCommandValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(6);
         RuleFor(x => x.StoreName).NotEmpty().Length(3, 100);
     }
 }
@@ -61,7 +64,8 @@ public class AuthHandlers :
     IRequestHandler<ResetPasswordCommand, AuthResponseDto>,
     IRequestHandler<ConfirmEmailCommand, AuthResponseDto>,
     IRequestHandler<ResendConfirmationEmailCommand, AuthResponseDto>,
-    IRequestHandler<GetCurrentUserQuery, UserDto>
+    IRequestHandler<GetCurrentUserQuery, UserDto>,
+    IRequestHandler<UpdateProfileCommand, AuthResponseDto>
 {
     private readonly IIdentityService _identityService;
     private readonly IUnitOfWork _unitOfWork;
@@ -80,12 +84,19 @@ public class AuthHandlers :
         _emailService = emailService;
     }
 
+    public async Task<AuthResponseDto> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var (success, errors) = await _identityService.UpdateUserAsync(userId, request.FullName);
+        return new AuthResponseDto(success, errors);
+    }
+
     public async Task<AuthResponseDto> Handle(RegisterCustomerCommand request, CancellationToken cancellationToken)
     {
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Customer.ToString());
+            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, request.FullName, Role.Customer.ToString());
             
             if (!success)
             {
@@ -93,13 +104,22 @@ public class AuthHandlers :
                 return new AuthResponseDto(false, errors);
             }
 
+            // Create Domain User
+            var domainUser = new User(userId, request.Email, request.FullName, Role.Customer, request.PhoneNumber);
+            await _unitOfWork.Users.AddAsync(domainUser, cancellationToken);
+
             var customer = new Customer(userId);
             await _unitOfWork.Customers.AddAsync(customer, cancellationToken);
+            
+            // Create cart for customer
+            var cart = new DomainCart(customer.Id);
+            await _unitOfWork.Carts.AddAsync(cart, cancellationToken);
+            
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // Send Confirmation Email
+            // Send Confirmation Email (optional now as we auto-confirm, but good to keep for flow)
             var token = await _identityService.GenerateEmailConfirmationTokenAsync(userId);
             var confirmationLink = $"http://localhost:3000/verify-email?userId={userId}&token={Uri.EscapeDataString(token)}";
             await _emailService.SendEmailAsync(request.Email, "Confirm your email", 
@@ -119,13 +139,17 @@ public class AuthHandlers :
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, Role.Vendor.ToString());
+            var (success, userId, errors) = await _identityService.RegisterAsync(request.Email, request.Password, request.FullName, Role.Vendor.ToString());
 
             if (!success)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 return new AuthResponseDto(false, errors);
             }
+
+            // Create Domain User
+            var domainUser = new User(userId, request.Email, request.FullName, Role.Vendor);
+            await _unitOfWork.Users.AddAsync(domainUser, cancellationToken);
 
             var vendor = new Vendor(userId, request.StoreName, SlugHelper.Generate(request.StoreName), request.StoreEmail);
             await _unitOfWork.Vendors.AddAsync(vendor, cancellationToken);
@@ -150,14 +174,14 @@ public class AuthHandlers :
 
     public async Task<LoginResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var (success, accessToken, refreshToken, errors) = await _identityService.LoginAsync(request.Email, request.Password, request.IpAddress);
-        return new LoginResponseDto(accessToken, refreshToken, errors);
+        var (success, accessToken, refreshToken, role, errors) = await _identityService.LoginAsync(request.Email, request.Password, request.IpAddress);
+        return new LoginResponseDto(accessToken, refreshToken, role, errors);
     }
 
     public async Task<LoginResponseDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var (success, accessToken, refreshToken, errors) = await _identityService.RefreshTokenAsync(request.Token, request.IpAddress);
-        return new LoginResponseDto(accessToken, refreshToken, errors);
+        var (success, accessToken, refreshToken, role, errors) = await _identityService.RefreshTokenAsync(request.Token, request.IpAddress);
+        return new LoginResponseDto(accessToken, refreshToken, role, errors);
     }
 
     public async Task<AuthResponseDto> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)

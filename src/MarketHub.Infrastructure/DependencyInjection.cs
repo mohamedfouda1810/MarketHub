@@ -53,6 +53,8 @@ namespace MarketHub.Infrastructure
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<ICartRepository, CartRepository>();
             services.AddScoped<IAddressRepository, AddressRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IStoreCategoryRepository, StoreCategoryRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;
@@ -62,11 +64,11 @@ namespace MarketHub.Infrastructure
         {
             services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
-                options.Password.RequireDigit = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequireNonAlphanumeric = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequiredLength = 6;
                 options.User.RequireUniqueEmail = true;
             })
             .AddEntityFrameworkStores<AppDbContext>()
@@ -94,7 +96,7 @@ namespace MarketHub.Infrastructure
                     ClockSkew = TimeSpan.Zero
                 };
 
-                // SignalR Authentication
+                // SignalR and Cookie Authentication
                 options.Events = new JwtBearerEvents
                 {
                     OnMessageReceived = context =>
@@ -105,6 +107,17 @@ namespace MarketHub.Infrastructure
                         {
                             context.Token = accessToken;
                         }
+                        
+                        // If no Authorization header, check cookies
+                        if (string.IsNullOrEmpty(context.Token))
+                        {
+                            var cookieToken = context.Request.Cookies["accessToken"];
+                            if (!string.IsNullOrEmpty(cookieToken))
+                            {
+                                context.Token = cookieToken;
+                            }
+                        }
+                        
                         return Task.CompletedTask;
                     }
                 };

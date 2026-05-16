@@ -3,8 +3,10 @@ export type Role = 'SuperAdmin' | 'Admin' | 'Vendor' | 'Customer';
 export interface User {
   id: string;
   email: string;
+  fullName: string;
   role: Role;
   vendorId?: string;
+  profilePictureUrl?: string;
 }
 
 export interface StoreCategory {
@@ -26,6 +28,7 @@ export interface Vendor {
   bannerUrl?: string;
   rating: number;
   reviewCount: number;
+  totalProducts: number;
   isActive: boolean;
   categories?: StoreCategory[];
 }
@@ -38,30 +41,31 @@ export interface ProductVariant {
   stockQuantity: number;
 }
 
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  isPrimary: boolean;
+}
+
 export interface ProductDto {
   id: string;
   name: string;
   slug: string;
   price: number;
+  compareAtPrice?: number;
   stockQuantity: number;
   description?: string;
   vendorName: string;
-}
-
-export interface Product {
-  id: string;
-  vendorId: string;
-  categoryId: string;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  compareAtPrice?: number;
-  stockQuantity: number;
-  images: string[];
-  status: 'Draft' | 'Active' | 'Archived';
+  vendorSlug: string;
   rating: number;
   reviewCount: number;
+  images: ProductImage[];
+}
+
+export interface Product extends ProductDto {
+  vendorId: string;
+  categoryId: string;
+  status: 'Draft' | 'Active' | 'Archived';
   variants: ProductVariant[];
   vendor?: Vendor;
 }

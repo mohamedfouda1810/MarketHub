@@ -1,93 +1,138 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatPrice, cn } from '@/lib/utils';
 import { Product } from '@/lib/types';
-import { Star, ShoppingCart, Heart } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { memo, useState } from 'react';
+import { useAddItemMutation } from '@/lib/api/cartApi';
+import toast from 'react-hot-toast';
 
 interface ProductCardProps {
   product: Product;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const imageUrl = product.images?.[0] || 'https://via.placeholder.com/400';
+const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [addItem, { isLoading: isAdding }] = useAddItemMutation();
+  // ✅ FIX: extract .imageUrl string from the ProductImage object
+  const primaryImage = product.images?.[0]?.imageUrl || 'https://via.placeholder.com/400';
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await addItem({
+        productId: product.id,
+        quantity: 1,
+        product: { name: product.name, price: product.price, images: product.images },
+      }).unwrap();
+      toast.success(`${product.name} added!`);
+    } catch {
+      toast.error('Could not add to cart.');
+    }
+  };
 
   return (
-    <div className="group relative rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col hover:shadow-premium transition-all duration-300 hover:-translate-y-1">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -12 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative rounded-squircle-md border bg-card text-card-foreground shadow-soft overflow-hidden flex flex-col hover:shadow-premium transition-all duration-700"
+    >
       {/* Wishlist Button */}
-      <button className="absolute top-3 right-3 z-10 p-2 rounded-full glass opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white hover:text-destructive text-muted-foreground">
-        <Heart className="h-4 w-4" />
-      </button>
+      <motion.button 
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
+        className="absolute top-5 right-5 z-20 p-3 rounded-squircle-sm glass opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:text-rose-500 text-muted-foreground shadow-xl"
+      >
+        <Heart className="h-5 w-5" />
+      </motion.button>
 
       <Link 
-        href={`/products/${product.vendor?.storeSlug || product.vendorId}/${product.slug}`} 
-        className="relative aspect-[4/5] overflow-hidden bg-muted"
+        href={`/products/${product.vendorSlug || product.vendorId}/${product.slug}`} 
+        className="relative aspect-[4/5] overflow-hidden bg-muted m-3 rounded-squircle-sm"
       >
         <Image 
-          src={imageUrl} 
+          src={primaryImage} 
           alt={product.name} 
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
+          className={`object-cover transition-all duration-700 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setImageLoaded(true)}
         />
         
         {/* Badges */}
-        <div className="absolute bottom-3 left-3 flex flex-col gap-2">
+        <div className="absolute bottom-5 left-5 flex flex-col gap-2">
           {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <div className="bg-destructive text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-rose-500 text-white text-[9px] font-black px-4 py-1.5 rounded-squircle-sm shadow-rose-glow uppercase tracking-widest"
+            >
               {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
-            </div>
+            </motion.div>
           )}
-          {product.stock === 0 && (
-            <div className="bg-muted-foreground/80 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg">
-              OUT OF STOCK
+          {product.stockQuantity === 0 && (
+            <div className="bg-muted-foreground/80 backdrop-blur-md text-white text-[9px] font-black px-4 py-1.5 rounded-squircle-sm uppercase tracking-widest">
+              Sold Out
             </div>
           )}
         </div>
       </Link>
 
-      <div className="p-5 flex-1 flex flex-col">
-        <div className="mb-2">
-          {product.vendor && (
-            <Link 
-              href={`/stores/${product.vendor.storeSlug}`} 
-              className="text-[10px] uppercase tracking-widest font-bold text-primary/70 hover:text-primary transition-colors mb-1 block"
-            >
-              {product.vendor.storeName}
-            </Link>
-          )}
+      <div className="p-8 pt-2 flex-1 flex flex-col">
+        <div className="mb-4">
           <Link 
-            href={`/products/${product.vendor?.storeSlug || product.vendorId}/${product.slug}`} 
-            className="font-bold text-lg hover:text-primary transition-colors line-clamp-1 leading-tight"
+            href={`/stores/${product.vendorSlug}`} 
+            className="text-[9px] uppercase tracking-[0.3em] font-black text-primary/60 hover:text-primary transition-colors mb-3 block"
+          >
+            {product.vendorName}
+          </Link>
+          <Link 
+            href={`/products/${product.vendorSlug || product.vendorId}/${product.slug}`} 
+            className="font-black text-2xl hover:text-primary transition-colors line-clamp-1 leading-tight tracking-tighter"
           >
             {product.name}
           </Link>
         </div>
 
-        <div className="flex items-center gap-1.5 mb-4">
-          <div className="flex items-center bg-primary/5 px-1.5 py-0.5 rounded-md">
-            <Star className="h-3 w-3 fill-primary text-primary" />
-            <span className="text-xs font-bold text-primary ml-1">{product.rating.toFixed(1)}</span>
+        <div className="flex items-center gap-3 mb-6">
+          {/* ✅ Changed to amber (rating) — more semantically appropriate than green */}
+          <div className="flex items-center bg-amber-500/10 px-3 py-1.5 rounded-2xl gap-1.5">
+            <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+            <span className="text-xs font-black text-amber-700">{product.rating.toFixed(1)}</span>
           </div>
-          <span className="text-[11px] text-muted-foreground font-medium">({product.reviewCount} reviews)</span>
+          <span className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase opacity-60">({product.reviewCount})</span>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-4">
+        <div className="mt-auto flex items-center justify-between gap-6 pt-6 border-t border-muted/20">
           <div className="flex flex-col">
-            <span className="font-extrabold text-xl text-foreground tracking-tight">
+            <span className="font-black text-3xl text-foreground tracking-tighter">
               {formatPrice(product.price)}
             </span>
             {product.compareAtPrice && product.compareAtPrice > product.price && (
-              <span className="text-xs text-muted-foreground line-through opacity-60">
+              <span className="text-xs text-muted-foreground line-through opacity-40 font-black tracking-tight">
                 {formatPrice(product.compareAtPrice)}
               </span>
             )}
           </div>
           
-          <button className="h-10 w-10 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-            <ShoppingCart className="h-5 w-5" />
-          </button>
+          <motion.button
+            onClick={handleAddToCart}
+            disabled={product.stockQuantity === 0 || isAdding}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="h-14 w-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-glow hover:shadow-glow-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAdding ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShoppingCart className="h-6 w-6" />}
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
-}
+});
+
+export default ProductCard;

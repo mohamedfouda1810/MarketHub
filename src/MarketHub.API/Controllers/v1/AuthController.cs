@@ -45,8 +45,24 @@ public class AuthController : BaseController
         Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
         {
             HttpOnly = true,
+            Secure = true, // Required for SameSite=None
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.UtcNow.AddDays(30)
+        });
+
+        Response.Cookies.Append("accessToken", result.AccessToken, new CookieOptions
+        {
+            HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.UtcNow.AddHours(1)
+        });
+
+        Response.Cookies.Append("userRole", result.Role, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = true,
+            SameSite = SameSiteMode.None,
             Expires = DateTime.UtcNow.AddDays(30)
         });
         
@@ -70,7 +86,23 @@ public class AuthController : BaseController
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.UtcNow.AddDays(30)
+        });
+
+        Response.Cookies.Append("accessToken", result.AccessToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Expires = DateTime.UtcNow.AddHours(1)
+        });
+
+        Response.Cookies.Append("userRole", result.Role, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = true,
+            SameSite = SameSiteMode.None,
             Expires = DateTime.UtcNow.AddDays(30)
         });
         
@@ -79,9 +111,18 @@ public class AuthController : BaseController
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<Unit>>> Logout()
+    public async Task<ActionResult<ApiResponse<Unit>>> Logout([FromServices] IIdentityService identityService)
     {
+        // Revoke the refresh token server-side before clearing cookies
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            await identityService.RevokeRefreshTokenAsync(refreshToken, ipAddress);
+        }
         Response.Cookies.Delete("refreshToken");
+        Response.Cookies.Delete("accessToken");
+        Response.Cookies.Delete("userRole");
         return OkResponse(Unit.Value, "Logged out successfully.");
     }
 
@@ -125,5 +166,29 @@ public class AuthController : BaseController
     {
         var result = await Mediator.Send(new GetCurrentUserQuery());
         return OkResponse(result);
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<AuthResponseDto>>> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return OkResponse(result, "Profile updated successfully.");
+    }
+
+    [HttpPost("profile/photo")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> UploadProfilePhoto(IFormFile photo, [FromServices] IFileStorageService fileStorageService, [FromServices] IIdentityService identityService, [FromServices] ICurrentUserService currentUserService)
+    {
+        if (photo == null || photo.Length == 0) return BadRequestResponse<object>(null, "No photo uploaded.");
+        
+        var userId = currentUserService.UserId ?? throw new UnauthorizedAccessException();
+        
+        using var stream = photo.OpenReadStream();
+        var imageUrl = await fileStorageService.UploadFileAsync(stream, photo.FileName, photo.ContentType);
+        
+        await identityService.UpdateProfilePictureAsync(userId, imageUrl);
+        
+        return OkResponse<object>(new { ImageUrl = imageUrl }, "Profile photo updated successfully.");
     }
 }

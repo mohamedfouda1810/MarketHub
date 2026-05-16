@@ -1,78 +1,73 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star, MapPin, Package, Users, Search, SlidersHorizontal, ChevronRight, Globe, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, Package, Users, Search, SlidersHorizontal, ChevronRight, Globe, ShieldCheck, Loader2 } from 'lucide-react';
 import ProductCard from '@/components/product/ProductCard';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useParams } from 'next/navigation';
+import { useGetStoreBySlugQuery, useGetStoreProductsQuery } from '@/lib/api/vendorApi';
 
-const MOCK_STORE = {
-  name: 'TechGadgets Pro',
-  slug: 'techgadgets-pro',
-  description: 'Your premier destination for high-end electronics and cutting-edge technology. We specialize in bringing the future to your doorstep with our curated collection of premium gadgets.',
-  rating: 4.8,
-  reviews: 1245,
-  followers: '12.5k',
-  joinedDate: 'Jan 2024',
-  location: 'San Francisco, CA',
-  logoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
-  bannerUrl: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1600&q=80',
-  products: [
-    {
-      id: '1',
-      name: 'Premium Wireless Headphones',
-      price: 299.99,
-      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80',
-      vendorName: 'TechGadgets Pro',
-      vendorSlug: 'techgadgets-pro',
-      slug: 'premium-wireless-headphones',
-      rating: 4.8,
-      reviewCount: 128,
-    },
-    {
-      id: '4',
-      name: 'Smart Fitness Tracker',
-      price: 120.00,
-      imageUrl: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=500&q=80',
-      vendorName: 'TechGadgets Pro',
-      vendorSlug: 'techgadgets-pro',
-      slug: 'smart-fitness-tracker',
-      rating: 4.5,
-      reviewCount: 89,
-    },
-    {
-      id: '7',
-      name: 'Ultra-Slim Laptop',
-      price: 1299.00,
-      imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&q=80',
-      vendorName: 'TechGadgets Pro',
-      vendorSlug: 'techgadgets-pro',
-      slug: 'ultra-slim-laptop',
-      rating: 4.9,
-      reviewCount: 45,
-    },
-    {
-      id: '8',
-      name: '4K Mirrorless Camera',
-      price: 850.00,
-      imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&q=80',
-      vendorName: 'TechGadgets Pro',
-      vendorSlug: 'techgadgets-pro',
-      slug: '4k-mirrorless-camera',
-      rating: 4.7,
-      reviewCount: 67,
-    },
-  ]
-};
+import { Skeleton, ProductCardSkeleton } from '@/components/ui/Skeleton';
 
 export default function StoreDetailPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const [activeTab, setActiveTab] = useState<'products' | 'about' | 'reviews'>('products');
+  
+  const { data: storeResult, isLoading: isStoreLoading } = useGetStoreBySlugQuery(slug);
+  const { data: productsResult, isLoading: isProductsLoading } = useGetStoreProductsQuery({ slug });
+
+  const store = storeResult?.data;
+  const products = productsResult?.data?.items || [];
+
+  if (isStoreLoading) {
+    return (
+      <div className="flex flex-col gap-12 pb-32">
+        <section className="relative h-[400px] w-full overflow-hidden bg-muted animate-pulse">
+          <div className="absolute bottom-0 left-0 w-full p-8 md:p-16">
+            <div className="container px-4 md:px-8 flex flex-col md:flex-row items-end gap-8">
+              <Skeleton className="w-32 h-32 md:w-48 md:h-48 rounded-squircle-md border-8 border-card" />
+              <div className="flex-1 space-y-4 pb-4">
+                <Skeleton className="h-12 w-1/3" />
+                <div className="flex gap-6">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="container px-4 md:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!store) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+        <h2 className="text-4xl font-black">Store Not Found</h2>
+        <p className="text-muted-foreground">The store you are looking for does not exist or has been moved.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-12 pb-32">
       {/* Store Hero/Banner */}
       <section className="relative h-[400px] w-full overflow-hidden">
-        <img src={MOCK_STORE.bannerUrl} alt="Store Banner" className="w-full h-full object-cover" />
+        {store.bannerUrl ? (
+          <img src={store.bannerUrl} alt="Store Banner" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-violet-500/10 to-transparent" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-16">
@@ -80,9 +75,15 @@ export default function StoreDetailPage() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="w-32 h-32 md:w-48 md:h-48 rounded-[3rem] bg-white p-2 shadow-2xl overflow-hidden relative"
+              className="w-32 h-32 md:w-48 md:h-48 rounded-squircle-md bg-white p-2 shadow-2xl overflow-hidden relative"
             >
-              <img src={MOCK_STORE.logoUrl} alt="Store Logo" className="w-full h-full object-cover rounded-[2.5rem]" />
+              {store.logoUrl ? (
+                <img src={store.logoUrl} alt="Store Logo" className="w-full h-full object-cover rounded-squircle-sm" />
+              ) : (
+                <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary text-5xl font-black rounded-squircle-sm">
+                  {store.storeName.charAt(0)}
+                </div>
+              )}
               <div className="absolute bottom-4 right-4 bg-green-500 w-4 h-4 rounded-full border-4 border-white shadow-sm" />
             </motion.div>
 
@@ -93,16 +94,16 @@ export default function StoreDetailPage() {
                 className="flex flex-col gap-4"
               >
                 <div className="flex flex-wrap items-center gap-4">
-                  <h1 className="text-4xl md:text-6xl font-black tracking-tight">{MOCK_STORE.name}</h1>
-                  <span className="px-4 py-1 rounded-full bg-primary text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                  <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-none">{store.storeName}</h1>
+                  <span className="badge-premium bg-primary text-white flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4" /> Verified Store
                   </span>
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-8 text-sm font-bold text-white/90">
-                  <div className="flex items-center gap-2"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /> {MOCK_STORE.rating} ({MOCK_STORE.reviews} Reviews)</div>
-                  <div className="flex items-center gap-2"><Users className="h-4 w-4" /> {MOCK_STORE.followers} Followers</div>
-                  <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {MOCK_STORE.location}</div>
+                  <div className="flex items-center gap-2"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /> {store.rating?.toFixed(1) || '0.0'} ({store.reviewCount || 0} Reviews)</div>
+                  <div className="flex items-center gap-2"><Package className="h-4 w-4" /> {store.totalProducts || 0} Products</div>
+                  <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Global Seller</div>
                 </div>
               </motion.div>
             </div>
@@ -125,9 +126,9 @@ export default function StoreDetailPage() {
           <div className="flex items-center justify-between border-b border-muted pb-4">
             <div className="flex gap-4">
               {[
-                { id: 'products', label: 'Products', count: MOCK_STORE.products.length },
+                { id: 'products', label: 'Products', count: store.totalProducts },
                 { id: 'about', label: 'About Store', count: null },
-                { id: 'reviews', label: 'Reviews', count: MOCK_STORE.reviews },
+                { id: 'reviews', label: 'Reviews', count: store.reviewCount },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -165,13 +166,26 @@ export default function StoreDetailPage() {
                     Featured <SlidersHorizontal className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {MOCK_STORE.products.map((product, idx) => (
-                    <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
-                      <ProductCard product={product as any} />
-                    </motion.div>
-                  ))}
-                </div>
+                
+                {isProductsLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="h-[400px] rounded-squircle-md bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : products.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {products.map((product, idx) => (
+                      <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
+                        <ProductCard product={product} />
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-20 text-center">
+                    <p className="text-xl text-muted-foreground font-bold">This store hasn&apos;t added any products yet.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -181,20 +195,20 @@ export default function StoreDetailPage() {
                   <div className="bg-white rounded-[3rem] border border-muted-foreground/10 p-12 shadow-soft">
                     <h3 className="text-3xl font-black mb-6">Our <span className="text-primary">Story</span></h3>
                     <p className="text-xl text-muted-foreground font-medium leading-relaxed mb-8">
-                      {MOCK_STORE.description}
+                      {store.description || "Welcome to our store! We are dedicated to providing the best quality products and customer service. Explore our collections and find something special today."}
                     </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
                       <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Member Since</p>
-                        <p className="text-lg font-black">{MOCK_STORE.joinedDate}</p>
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Contact Email</p>
+                        <p className="text-lg font-black">{store.storeEmail}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Location</p>
-                        <p className="text-lg font-black">{MOCK_STORE.location}</p>
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Store Phone</p>
+                        <p className="text-lg font-black">{store.storePhone || 'Not provided'}</p>
                       </div>
                       <div>
                         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Total Sales</p>
-                        <p className="text-lg font-black">50k+</p>
+                        <p className="text-lg font-black">Verified Vendor</p>
                       </div>
                     </div>
                   </div>

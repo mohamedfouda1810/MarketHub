@@ -139,6 +139,12 @@ public class CartProfile : Profile
 {
     public CartProfile()
     {
-        // Add mappings
+        CreateMap<CartItem, CartItemDto>()
+            .ForMember(d => d.ProductName, opt => opt.MapFrom(s => s.Product.Name))
+            .ForMember(d => d.ImageUrl, opt => opt.MapFrom(s => s.Product.Images.FirstOrDefault(i => i.IsPrimary).ImageUrl ?? (s.Product.Images.FirstOrDefault() != null ? s.Product.Images.FirstOrDefault().ImageUrl : "")));
+        
+        CreateMap<MarketHub.Domain.Entities.Cart, CartDto>()
+            .ForMember(d => d.ItemCount, opt => opt.MapFrom(s => s.Items.Count))
+            .ForMember(d => d.Subtotal, opt => opt.MapFrom(s => s.Items.Sum(i => i.Quantity * i.UnitPrice)));
     }
 }

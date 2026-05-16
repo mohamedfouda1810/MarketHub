@@ -5,13 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/lib/store/authSlice';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Mail } from 'lucide-react';
-import { useLoginMutation } from '@/lib/api/authApi';
+import { ArrowLeft, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { useLoginMutation, authApi } from '@/lib/api/authApi';
+import { Suspense } from 'react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -21,8 +22,23 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
   const dispatch = useDispatch();
   const [login] = useLoginMutation();
 
@@ -35,24 +51,43 @@ export default function LoginPage() {
     try {
       const result = await login(data).unwrap();
       
-      // In a real app, the API would return user info. 
-      // If the API only returns tokens, we might need to call getCurrentUser.
-      // For now, assuming successful login redirects to correct dashboard based on a mock check or API response.
-      
-      if (data.email.includes('vendor')) {
+      if (result.success && result.data) {
+        // Dispatch token first so baseQuery can use it for subsequent calls
         dispatch(setCredentials({
-          user: { id: '1', email: data.email, role: 'Vendor', vendorId: 'v1' },
-          accessToken: result.accessToken,
+          accessToken: result.data.accessToken,
         }));
-        toast.success('Welcome back, Vendor!');
-        router.push('/vendor/dashboard');
-      } else {
-        dispatch(setCredentials({
-          user: { id: '2', email: data.email, role: 'Customer' },
-          accessToken: result.accessToken,
-        }));
-        toast.success('Logged in successfully');
-        router.push('/');
+
+        // Fetch user info after successful login
+        const userResult = await dispatch(authApi.endpoints.getCurrentUser.initiate()).unwrap();
+        
+        if (userResult.success && userResult.data) {
+          dispatch(setCredentials({
+            user: userResult.data,
+            accessToken: result.data.accessToken,
+          }));
+          
+          // ✅ FIX: Removed manual document.cookie setting.
+          // The backend sets HttpOnly cookies (accessToken, refreshToken, userRole) already.
+          // Duplicating them as JS-accessible cookies was redundant and a security concern.
+
+          toast.success(`Welcome back, ${userResult.data.fullName}!`);
+          
+          // 1. Prioritize returnUrl from params
+          if (returnUrl) {
+            router.push(returnUrl);
+            return;
+          }
+
+          // 2. Fallback to role-based redirection
+          const role = userResult.data.role;
+          if (role === 'Vendor') {
+            router.push('/vendor/dashboard');
+          } else if (role === 'Admin' || role === 'SuperAdmin') {
+            router.push('/admin/dashboard');
+          } else {
+            router.push('/');
+          }
+        }
       }
     } catch (error: any) {
       const errorMessage = error?.data?.message || 'Invalid credentials';
@@ -99,8 +134,8 @@ export default function LoginPage() {
           className="max-w-md w-full mx-auto"
         >
           <div className="mb-12">
-            <h1 className="text-4xl font-black tracking-tight mb-3">Sign <span className="text-primary">In</span></h1>
-            <p className="text-muted-foreground font-medium">Continue your journey with MarketHub.</p>
+            <h1 className="text-4xl font-black tracking-tight mb-3">Sign <span className="text-primary">In to MarketHub</span></h1>
+            <p className="text-muted-foreground font-medium">Continue your journey with our multi-vendor platform.</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -122,18 +157,27 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <label className="text-sm font-bold" htmlFor="password">Password</label>
-                <Link href="/forgot-password" disabled className="text-xs font-bold text-primary hover:underline">
+                {/* ✅ FIX: <Link disabled> is not valid. Forgot password not yet implemented — render as styled span */}
+                <span className="text-xs font-bold text-muted-foreground/40 cursor-not-allowed select-none">
                   Forgot?
-                </Link>
+                </span>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   {...register('password')}
                   className="flex h-14 w-full rounded-2xl border-none bg-muted px-12 py-2 text-base shadow-inner-soft focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               {errors.password && <p className="text-xs text-destructive font-bold mt-1 ml-1">{errors.password.message}</p>}
             </div>
@@ -146,9 +190,9 @@ export default function LoginPage() {
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Signing in...</span>
+                  <span>Authenticating...</span>
                 </div>
-              ) : 'Sign In'}
+              ) : 'Access Dashboard'}
             </button>
           </form>
 
@@ -161,7 +205,11 @@ export default function LoginPage() {
 
           <div className="mt-8 p-4 rounded-2xl bg-primary/5 border border-primary/10 text-center">
             <p className="text-xs font-bold text-primary/70 mb-1 uppercase tracking-widest">Demo Credentials</p>
-            <p className="text-sm font-medium text-primary/80">vendor@example.com <span className="mx-1">•</span> any password</p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-primary/80">admin1@markethub.com <span className="mx-1">•</span> Admin123!</p>
+              <p className="text-sm font-medium text-primary/80">vendor1@markethub.com <span className="mx-1">•</span> Vendor123!</p>
+            </div>
+            <p className="text-[10px] font-bold text-primary/40 mt-4 uppercase tracking-[0.2em]">System Version 1.1.0</p>
           </div>
         </motion.div>
       </div>

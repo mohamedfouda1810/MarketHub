@@ -88,11 +88,7 @@ builder.Services.AddHealthChecks()
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379", name: "Redis")
     .AddElasticsearch(builder.Configuration.GetConnectionString("ElasticSearch") ?? "http://localhost:9200", name: "Elasticsearch");
 
-// 11. Caching & Idempotency Filter
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-});
+// 11. Idempotency Filter (Redis cache is already registered via AddInfrastructure → AddCaching)
 builder.Services.AddScoped<IdempotencyFilter>();
 builder.Services.AddScoped<ApiKeyAuthFilter>();
 

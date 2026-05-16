@@ -4,6 +4,7 @@ using MediatR;
 using MarketHub.Shared;
 using MarketHub.Application.Common.Interfaces;
 using MarketHub.Domain.Interfaces;
+using MarketHub.Domain.Enums;
 using MarketHub.Shared.Exceptions;
 using MarketHub.Domain.Entities;
 
@@ -11,7 +12,18 @@ using MarketHub.Domain.Entities;
 namespace MarketHub.Application.Features.Vendors;
 
 // DTOs
-public record VendorStoreDto(Guid Id, string StoreName, string StoreSlug, string? StoreDescription, string? StoreLogoUrl, string? StoreBannerUrl, string? StoreEmail, string? StorePhone, int TotalProducts, decimal Rating);
+public record VendorStoreDto(
+    Guid Id, 
+    string StoreName, 
+    string StoreSlug, 
+    string? StoreDescription, 
+    string? StoreLogoUrl, 
+    string? StoreBannerUrl, 
+    string? StoreEmail, 
+    string? StorePhone, 
+    int TotalProducts, 
+    decimal Rating,
+    int ReviewCount);
 public record DashboardDto(decimal TotalSales, int TotalOrders, int PendingOrders, decimal TotalRevenue, List<object> RecentOrders, List<object> TopProducts, List<object> SalesChartData);
 public record EarningsDto(decimal TotalEarnings, decimal PendingClearance, decimal AvailableForWithdrawal, List<object> Transactions);
 
@@ -72,15 +84,43 @@ public class VendorHandlers :
     public async Task<DashboardDto> Handle(GetVendorDashboardQuery request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
-        var vendors = await _unitOfWork.Vendors.GetAllAsync(cancellationToken);
-        var vendor = vendors.FirstOrDefault(v => v.UserId == userId) ?? throw new NotFoundException("Vendor", userId);
+        var vendor = await _unitOfWork.Vendors.GetByUserIdAsync(userId, cancellationToken) ?? throw new NotFoundException("Vendor", userId);
 
-        return new DashboardDto(45231.89m, 2350, 12, 40000m, new List<object>(), new List<object>(), new List<object>());
+        var (orders, totalOrders) = await _unitOfWork.Orders.GetByVendorIdAsync(vendor.Id, 1, 100, cancellationToken);
+        var (productItems, _) = await _unitOfWork.Products.GetByVendorIdAsync(vendor.Id, 1, 100, cancellationToken);
+
+        var totalSales = orders.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount);
+        var pendingOrders = orders.Count(o => o.Status == OrderStatus.Pending);
+        var recentOrders = orders.OrderByDescending(o => o.CreatedAt).Take(5).ToList();
+        var topProducts = productItems.OrderByDescending(p => p.Reviews.Any() ? p.Reviews.Average(r => r.Rating) : 0).Take(5).ToList();
+
+        return new DashboardDto(
+            TotalSales: totalSales,
+            TotalOrders: totalOrders,
+            PendingOrders: pendingOrders,
+            TotalRevenue: totalSales * 0.9m,
+            RecentOrders: _mapper.Map<List<object>>(recentOrders),
+            TopProducts: _mapper.Map<List<object>>(topProducts),
+            SalesChartData: new List<object>()
+        );
     }
 
     public async Task<EarningsDto> Handle(GetVendorEarningsQuery request, CancellationToken cancellationToken)
     {
-        return new EarningsDto(35000m, 5000m, 12000m, new List<object>());
+        var userId = _currentUserService.UserId ?? throw new UnauthorizedException("User not authenticated.");
+        var vendor = await _unitOfWork.Vendors.GetByUserIdAsync(userId, cancellationToken) ?? throw new NotFoundException("Vendor", userId);
+
+        var (orders, _) = await _unitOfWork.Orders.GetByVendorIdAsync(vendor.Id, 1, 1000, cancellationToken);
+
+        var totalEarnings = orders.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.TotalAmount) * 0.9m;
+        var pendingClearance = orders.Where(o => o.Status == OrderStatus.Shipped).Sum(o => o.TotalAmount) * 0.9m;
+
+        return new EarningsDto(
+            TotalEarnings: totalEarnings,
+            PendingClearance: pendingClearance,
+            AvailableForWithdrawal: vendor.BalanceAmount,
+            Transactions: new List<object>()
+        );
     }
 
     public async Task<Unit> Handle(ApproveVendorCommand request, CancellationToken cancellationToken)
@@ -108,6 +148,7 @@ public class VendorProfile : Profile
     public VendorProfile()
     {
         CreateMap<Vendor, VendorStoreDto>()
-            .ForMember(d => d.TotalProducts, opt => opt.MapFrom(s => s.Products.Count));
+            .ForMember(d => d.TotalProducts, opt => opt.MapFrom(s => s.Products.Count))
+            .ForMember(d => d.ReviewCount, opt => opt.MapFrom(s => s.Products.Sum(p => p.Reviews.Count)));
     }
 }

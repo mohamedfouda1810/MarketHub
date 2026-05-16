@@ -115,4 +115,21 @@ public class Product : AuditableEntity
         StoreCategoryId = storeCategoryId;
         UpdateTimestamp();
     }
+
+    public void AddImage(string imageUrl, bool isPrimary = false)
+    {
+        var image = new ProductImage(Id, imageUrl, isPrimary);
+        _images.Add(image);
+        UpdateTimestamp();
+    }
+
+    public void RemoveImage(Guid imageId)
+    {
+        var image = _images.FirstOrDefault(i => i.Id == imageId);
+        if (image != null)
+        {
+            _images.Remove(image);
+            UpdateTimestamp();
+        }
+    }
 }

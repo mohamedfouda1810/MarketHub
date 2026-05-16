@@ -5,6 +5,7 @@ using MarketHub.API.Models;
 using MarketHub.Shared;
 using MarketHub.Application.Features.Vendors;
 using MarketHub.Application.Features.Products;
+using MarketHub.Domain.Common;
 using MediatR;
 
 namespace MarketHub.API.Controllers.v1;
@@ -50,8 +51,7 @@ public class VendorsController : BaseController
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<PagedList<ProductDto>>>> GetVendorProducts([FromRoute] string slug, [FromQuery] PaginationParams paginationParams)
     {
-        // We reuse the search query with a filter for vendor slug if possible, or a specific query
-        var result = await Mediator.Send(new GetProductsQuery(null, null, paginationParams.PageNumber, paginationParams.PageSize));
+        var result = await Mediator.Send(new GetProductsQuery(null, new ProductFilters { VendorSlug = slug }, paginationParams.PageNumber, paginationParams.PageSize));
         
         Response.Headers.Append("X-Pagination", System.Text.Json.JsonSerializer.Serialize(new 
         { 

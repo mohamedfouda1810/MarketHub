@@ -53,7 +53,7 @@ export const cartApi = api.injectEndpoints({
                   quantity, 
                   unitPrice: product.price, 
                   productName: product.name,
-                  imageUrl: product.images?.[0] || '',
+                  imageUrl: product.images?.[0]?.imageUrl || '', // ✅ FIX: was images?.[0] (returned object, not string)
                   totalPrice: product.price * quantity
                 });
               }

@@ -13,6 +13,8 @@ namespace MarketHub.Infrastructure.Persistence
         public ICustomerRepository Customers { get; }
         public ICartRepository Carts { get; }
         public IAddressRepository Addresses { get; }
+        public IUserRepository Users { get; }
+        public IStoreCategoryRepository StoreCategories { get; }
 
         public UnitOfWork(
             AppDbContext context,
@@ -21,7 +23,9 @@ namespace MarketHub.Infrastructure.Persistence
             IOrderRepository orders,
             ICustomerRepository customers,
             ICartRepository carts,
-            IAddressRepository addresses)
+            IAddressRepository addresses,
+            IUserRepository users,
+            IStoreCategoryRepository storeCategories)
         {
             _context = context;
             Vendors = vendors;
@@ -30,6 +34,8 @@ namespace MarketHub.Infrastructure.Persistence
             Customers = customers;
             Carts = carts;
             Addresses = addresses;
+            Users = users;
+            StoreCategories = storeCategories;
         }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

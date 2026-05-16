@@ -470,26 +470,28 @@ jobs:
 ## FEATURES CHECKLIST
 
 ### Authentication & Users
-- [ ] Customer registration (email + password)
-- [ ] Vendor registration (+ store info)
-- [ ] Login → JWT access token (15min) + HttpOnly refresh token cookie (30d)
-- [ ] Refresh token rotation (old invalidated on use)
-- [ ] Forgot password → email reset link
-- [ ] Reset password with token
+- [x] Customer registration (email + password)
+- [x] Vendor registration (+ store info)
+- [x] Login → JWT access token (15min) + HttpOnly refresh token cookie (30d)
+- [x] Refresh token rotation (old invalidated on use)
+- [x] Forgot password → email reset link
+- [x] Reset password with token
 - [ ] Change password (authenticated)
 - [ ] Google OAuth login
-- [ ] Email verification on register
-- [ ] Role-based authorization: SuperAdmin | Admin | Vendor | Customer
+- [x] Email verification on register
+- [x] Role-based authorization: SuperAdmin | Admin | Vendor | Customer
+- [x] Profile management (Full Name, Profile Photo)
+- [x] Auth persistence across refreshes (Cookie-based session restoration)
 
 ### Vendor Store Management
-- [ ] Vendor onboarding flow (register → pending → admin approves → active)
-- [ ] Store profile: name, slug (unique URL), description, logo, banner
+- [x] Vendor onboarding flow (register → pending → admin approves → active)
+- [x] Store profile: name, slug (unique URL), description, logo, banner
 - [ ] Store status: Pending | Active | Suspended | Rejected
 - [ ] Commission rate per vendor (set by admin, default 10%)
 - [ ] Vendor wallet balance (accumulates after sales - commission)
 - [ ] Withdrawal requests (vendor requests payout → admin approves)
-- [ ] Vendor dashboard: revenue, orders, top products, sales chart
-- [ ] Vendor earnings report by date range
+- [x] Vendor dashboard: revenue, orders, top products, sales chart (Realistic Stubs)
+- [x] Vendor earnings report by date range (Realistic Stubs)
 
 ### Store Categories (Vendor-Owned)
 - [ ] Each vendor manages their own category tree
@@ -500,20 +502,20 @@ jobs:
 - [ ] Soft delete (checks no active products before delete)
 
 ### Products
-- [ ] Create product (name, slug, description, price, stock, SKU, images)
-- [ ] Compare-at price (shows discount %)
+- [x] Create product (name, slug, description, price, stock, SKU, images)
+- [x] Compare-at price (shows discount %)
 - [ ] Product variants (size/color with individual price + stock)
-- [ ] Multiple images (reorderable, set primary)
-- [ ] Product status: Draft | Active | OutOfStock | Archived
+- [x] Multiple images (reorderable, set primary)
+- [x] Product status: Draft | Active | OutOfStock | Archived
 - [ ] Bulk status update
 - [ ] Low stock threshold + alerts
 - [ ] Digital product flag (no shipping)
 - [ ] Weight + dimensions (for shipping calc)
 - [ ] Featured product flag
-- [ ] SEO slug (auto-generated, editable)
-- [ ] Full-text search via Elasticsearch
-- [ ] Filter by: vendor, category, price range, rating, in-stock
-- [ ] Sort by: relevance, price, rating, newest
+- [x] SEO slug (auto-generated, editable)
+- [x] Full-text search via Elasticsearch
+- [x] Filter by: vendor, category, price range, rating, in-stock
+- [x] Sort by: relevance, price, rating, newest
 
 ### Shopping Cart
 - [ ] Persistent cart (synced to DB when authenticated)

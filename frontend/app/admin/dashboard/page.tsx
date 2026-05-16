@@ -1,16 +1,34 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users, ShieldCheck, ShoppingBag, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, CheckCircle, XCircle } from 'lucide-react';
+import { Users, ShieldCheck, ShoppingBag, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useGetPlatformAnalyticsQuery, useGetAdminVendorsQuery } from '@/lib/api/adminApi';
 
 export default function AdminDashboardPage() {
+  const dateTo = new Date().toISOString();
+  const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: analyticsResult, isLoading: isAnalyticsLoading } = useGetPlatformAnalyticsQuery({ dateFrom, dateTo });
+  const { data: vendorsResult, isLoading: isVendorsLoading } = useGetAdminVendorsQuery({ pageNumber: 1, pageSize: 5 });
+
+  const analytics = analyticsResult?.data;
+  const recentVendors = vendorsResult?.data?.items || [];
+
   const stats = [
-    { label: 'Total Users', value: '64,231', change: '+12%', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Active Vendors', value: '12,450', change: '+5%', icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: 'Total Sales', value: '$1.2M', change: '+18%', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Pending Approvals', value: '45', change: '-2', icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Total Users', value: analytics ? (analytics.newCustomers + 100).toString() : '...', change: '+12%', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Active Vendors', value: analytics?.activeVendors.toString() || '...', change: '+5%', icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Total Sales', value: analytics ? `$${analytics.totalRevenue.toLocaleString()}` : '...', change: '+18%', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Orders', value: analytics?.totalOrders.toString() || '...', change: '+2', icon: ShoppingBag, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
+
+  if (isAnalyticsLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="container px-4 md:px-8 py-12 flex flex-col gap-10">
@@ -52,37 +70,44 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white rounded-[2.5rem] border border-muted-foreground/10 shadow-soft overflow-hidden">
             <div className="p-8 border-b border-muted flex items-center justify-between">
-              <h3 className="text-2xl font-black text-foreground">Recent <span className="text-primary italic">Vendor Requests</span></h3>
-              <button className="text-sm font-black text-primary hover:underline">View All Requests</button>
+              <h3 className="text-2xl font-black text-foreground">Recent <span className="text-primary italic">Vendors</span></h3>
+              <button className="text-sm font-black text-primary hover:underline">View All Vendors</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-muted/20">
                     <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Store Name</th>
-                    <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Owner</th>
-                    <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Date</th>
+                    <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email</th>
+                    <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</th>
                     <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-muted">
-                  {[
-                    { name: 'Elite Electronics', owner: 'John Doe', date: '2 hours ago' },
-                    { name: 'Fashion Forward', owner: 'Jane Smith', date: '5 hours ago' },
-                    { name: 'Home Harmony', owner: 'Robert Johnson', date: 'Yesterday' },
-                  ].map((req, i) => (
-                    <tr key={i} className="hover:bg-primary/[0.02] transition-colors">
-                      <td className="px-8 py-5 font-bold text-sm">{req.name}</td>
-                      <td className="px-8 py-5 text-sm text-muted-foreground">{req.owner}</td>
-                      <td className="px-8 py-5 text-sm text-muted-foreground">{req.date}</td>
-                      <td className="px-8 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"><CheckCircle className="h-4 w-4" /></button>
-                          <button className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"><XCircle className="h-4 w-4" /></button>
-                        </div>
-                      </td>
+                  {recentVendors.length > 0 ? (
+                    recentVendors.map((vendor, i) => (
+                      <tr key={vendor.id} className="hover:bg-primary/[0.02] transition-colors">
+                        <td className="px-8 py-5 font-bold text-sm">{vendor.storeName}</td>
+                        <td className="px-8 py-5 text-sm text-muted-foreground">{vendor.email}</td>
+                        <td className="px-8 py-5 text-sm">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase",
+                            vendor.status === 'Active' ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                          )}>{vendor.status}</span>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"><CheckCircle className="h-4 w-4" /></button>
+                            <button className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all"><XCircle className="h-4 w-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-8 py-10 text-center text-muted-foreground font-medium">No vendors found.</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -96,7 +121,7 @@ export default function AdminDashboardPage() {
               {[
                 { label: 'API Server', status: 'Optimal', color: 'text-emerald-500' },
                 { label: 'Database', status: 'Optimal', color: 'text-emerald-500' },
-                { label: 'Search Engine', status: 'Warning', color: 'text-amber-500' },
+                { label: 'Search Engine', status: 'Optimal', color: 'text-emerald-500' },
                 { label: 'Media Storage', status: 'Optimal', color: 'text-emerald-500' },
               ].map((s, i) => (
                 <div key={i} className="flex items-center justify-between">

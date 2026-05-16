@@ -58,9 +58,9 @@ export const productApi = api.injectEndpoints({
       query: ({ id, data }) => ({ url: `/products/${id}/images`, method: 'POST', body: data }),
       invalidatesTags: (result, error, arg) => [{ type: 'Product', id: arg.id }],
     }),
-    deleteProductImage: builder.mutation<ApiResponse<void>, string>({
-      query: (imageId) => ({ url: `/products/images/${imageId}`, method: 'DELETE' }),
-      invalidatesTags: ['Product'],
+    deleteProductImage: builder.mutation<ApiResponse<void>, { productId: string; imageId: string }>({
+      query: ({ productId, imageId }) => ({ url: `/products/${productId}/images/${imageId}`, method: 'DELETE' }),
+      invalidatesTags: (result, error, arg) => [{ type: 'Product', id: arg.productId }],
     }),
   }),
 });

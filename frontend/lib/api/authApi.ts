@@ -18,6 +18,7 @@ export interface UserDto {
   fullName: string;
   role: string;
   vendorId?: string;
+  profilePictureUrl?: string;
 }
 
 export const authApi = api.injectEndpoints({
@@ -42,6 +43,15 @@ export const authApi = api.injectEndpoints({
     }),
     getCurrentUser: builder.query<ApiResponse<UserDto>, void>({
       query: () => '/auth/me',
+      providesTags: ['User'],
+    }),
+    updateProfile: builder.mutation<ApiResponse<AuthResponseDto>, { fullName: string }>({
+      query: (data) => ({ url: '/auth/profile', method: 'PUT', body: data }),
+      invalidatesTags: ['User'],
+    }),
+    uploadProfilePhoto: builder.mutation<ApiResponse<{ imageUrl: string }>, FormData>({
+      query: (data) => ({ url: '/auth/profile/photo', method: 'POST', body: data }),
+      invalidatesTags: ['User'],
     }),
   }),
 });
@@ -54,4 +64,6 @@ export const {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useGetCurrentUserQuery,
+  useUpdateProfileMutation,
+  useUploadProfilePhotoMutation,
 } = authApi;

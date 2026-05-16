@@ -28,9 +28,15 @@ namespace MarketHub.Infrastructure.Identity
             _context = context;
         }
 
-        public async Task<(bool Success, Guid UserId, string[] Errors)> RegisterAsync(string email, string password, string role)
+        public async Task<(bool Success, Guid UserId, string[] Errors)> RegisterAsync(string email, string password, string fullName, string role)
         {
-            var user = new ApplicationUser { UserName = email, Email = email };
+            var user = new ApplicationUser 
+            { 
+                UserName = email, 
+                Email = email, 
+                FullName = fullName,
+                EmailConfirmed = true // Auto-confirm for now to ensure "signup and logon" works immediately
+            };
             var result = await _userManager.CreateAsync(user, password);
 
             if (!result.Succeeded)
@@ -43,27 +49,27 @@ namespace MarketHub.Infrastructure.Identity
             return (true, user.Id, Array.Empty<string>());
         }
 
-        public async Task<(bool Success, string AccessToken, string RefreshToken, string[] Errors)> LoginAsync(string email, string password, string ipAddress)
+        public async Task<(bool Success, string AccessToken, string RefreshToken, string Role, string[] Errors)> LoginAsync(string email, string password, string ipAddress)
         {
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
             {
                 Serilog.Log.Warning("Login failed: User with email {Email} not found.", email);
-                return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
+                return (false, string.Empty, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
             // Check if email is confirmed
             if (!await _userManager.IsEmailConfirmedAsync(user))
             {
                 Serilog.Log.Warning("Login failed: Email not confirmed for {Email}.", email);
-                return (false, string.Empty, string.Empty, new[] { "Email not confirmed. Please check your inbox." });
+                return (false, string.Empty, string.Empty, string.Empty, new[] { "Email not confirmed. Please check your inbox." });
             }
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
             if (!result.Succeeded)
             {
                 Serilog.Log.Warning("Login failed: Invalid password for {Email}.", email);
-                return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
+                return (false, string.Empty, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
             Serilog.Log.Information("Login successful for {Email} from IP {IpAddress}.", email, ipAddress);
@@ -95,13 +101,13 @@ namespace MarketHub.Infrastructure.Identity
             return await _userManager.GenerateEmailConfirmationTokenAsync(user);
         }
 
-        public async Task<(bool Success, string AccessToken, string RefreshToken, string[] Errors)> RefreshTokenAsync(string token, string ipAddress)
+        public async Task<(bool Success, string AccessToken, string RefreshToken, string Role, string[] Errors)> RefreshTokenAsync(string token, string ipAddress)
         {
             var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.Token == token);
 
             if (refreshToken == null || !refreshToken.IsActive)
             {
-                return (false, string.Empty, string.Empty, new[] { "Invalid refresh token." });
+                return (false, string.Empty, string.Empty, string.Empty, new[] { "Invalid refresh token." });
             }
 
             // Revoke current refresh token
@@ -114,7 +120,7 @@ namespace MarketHub.Infrastructure.Identity
             var user = await _userManager.FindByIdAsync(refreshToken.UserId.ToString());
             if (user == null)
             {
-                return (false, string.Empty, string.Empty, new[] { "User not found." });
+                return (false, string.Empty, string.Empty, string.Empty, new[] { "User not found." });
             }
 
             return await GenerateTokensAsync(user, ipAddress);
@@ -135,7 +141,7 @@ namespace MarketHub.Infrastructure.Identity
                 vendorId = vendor?.Id;
             }
 
-            return new UserDto(user.Id.ToString(), user.Email!, user.UserName!, role, vendorId?.ToString());
+            return new UserDto(user.Id.ToString(), user.Email!, user.FullName ?? user.UserName!, role, vendorId?.ToString(), user.ProfilePictureUrl);
         }
 
         public async Task<UserDto?> GetUserByEmailAsync(string email)
@@ -153,7 +159,39 @@ namespace MarketHub.Infrastructure.Identity
                 vendorId = vendor?.Id;
             }
 
-            return new UserDto(user.Id.ToString(), user.Email!, user.UserName!, role, vendorId?.ToString());
+            return new UserDto(user.Id.ToString(), user.Email!, user.FullName ?? user.UserName!, role, vendorId?.ToString(), user.ProfilePictureUrl);
+        }
+
+        public async Task<(bool Success, string[] Errors)> UpdateUserAsync(Guid userId, string fullName)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return (false, new[] { "User not found." });
+
+            user.FullName = fullName;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return (false, result.Errors.Select(e => e.Description).ToArray());
+            }
+
+            return (true, Array.Empty<string>());
+        }
+
+        public async Task<(bool Success, string[] Errors)> UpdateProfilePictureAsync(Guid userId, string imageUrl)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return (false, new[] { "User not found." });
+
+            user.ProfilePictureUrl = imageUrl;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return (false, result.Errors.Select(e => e.Description).ToArray());
+            }
+
+            return (true, Array.Empty<string>());
         }
 
         public async Task<(bool Success, string[] Errors)> ForgotPasswordAsync(string email)
@@ -188,9 +226,23 @@ namespace MarketHub.Infrastructure.Identity
             return (true, Array.Empty<string>());
         }
 
-        private async Task<(bool Success, string AccessToken, string RefreshToken, string[] Errors)> GenerateTokensAsync(ApplicationUser user, string ipAddress)
+        public async Task<bool> RevokeRefreshTokenAsync(string refreshToken, string ipAddress)
+        {
+            var token = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.Token == refreshToken);
+            if (token == null || !token.IsActive) return false;
+
+            token.IsRevoked = true;
+            token.RevokedAt = DateTime.UtcNow;
+            token.RevokedByIp = ipAddress;
+            _context.RefreshTokens.Update(token);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private async Task<(bool Success, string AccessToken, string RefreshToken, string Role, string[] Errors)> GenerateTokensAsync(ApplicationUser user, string ipAddress)
         {
             var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? "Customer";
             
             // Check if user is a vendor
             Guid? vendorId = null;
@@ -215,7 +267,7 @@ namespace MarketHub.Infrastructure.Identity
             await _context.RefreshTokens.AddAsync(refreshToken);
             await _context.SaveChangesAsync();
 
-            return (true, accessToken, refreshTokenString, Array.Empty<string>());
+            return (true, accessToken, refreshTokenString, role, Array.Empty<string>());
         }
     }
 }
