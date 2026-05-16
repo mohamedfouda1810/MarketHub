@@ -17,7 +17,12 @@ public record AuthResponseDto(bool Success, string[] Errors);
 // Commands & Queries
 public record RegisterCustomerCommand(string Email, string Password, string FullName, string PhoneNumber) : IRequest<AuthResponseDto>;
 public record RegisterVendorCommand(string Email, string Password, string FullName, string StoreName, string StoreDescription, string StoreEmail) : IRequest<AuthResponseDto>;
-public record LoginCommand(string Email, string Password, string IpAddress) : IRequest<LoginResponseDto>;
+public record LoginCommand : IRequest<LoginResponseDto>
+{
+    public string Email { get; init; } = string.Empty;
+    public string Password { get; init; } = string.Empty;
+    public string IpAddress { get; init; } = string.Empty;
+}
 public record RefreshTokenCommand(string Token, string IpAddress) : IRequest<LoginResponseDto>;
 public record ForgotPasswordCommand(string Email) : IRequest<AuthResponseDto>;
 public record ResetPasswordCommand(string Email, string Token, string NewPassword) : IRequest<AuthResponseDto>;

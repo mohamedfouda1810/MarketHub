@@ -25,15 +25,16 @@ export default function VerifyEmailPage() {
       }
 
       try {
-        const response = await fetch(`http://localhost:5000/api/v1/auth/confirm-email?userId=${userId}&token=${encodeURIComponent(token)}`);
-        const data = await response.json();
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7001/api/v1';
+        const response = await fetch(`${apiUrl}/auth/confirm-email?userId=${userId}&token=${encodeURIComponent(token)}`);
+        const result = await response.json();
 
         if (response.ok) {
           setStatus('success');
           setMessage('Your email has been successfully verified! You can now sign in to your account.');
         } else {
           setStatus('error');
-          setMessage(data.message || 'Verification failed. The link may have expired.');
+          setMessage(result.message || 'Verification failed. The link may have expired.');
         }
       } catch (error) {
         setStatus('error');

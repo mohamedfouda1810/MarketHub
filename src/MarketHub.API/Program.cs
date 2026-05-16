@@ -76,26 +76,15 @@ builder.Services.AddCors(options =>
 // 8. SignalR
 builder.Services.AddSignalR();
 
-// 9. Hangfire
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Server=(localdb)\\mssqllocaldb;Database=MarketHubDb;Trusted_Connection=True;";
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
-    {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true
-    }));
-builder.Services.AddHangfireServer();
+// 9. Hangfire - Already registered in Infrastructure
+// builder.Services.AddHangfire(...) is handled in builder.Services.AddInfrastructure(builder.Configuration);
 
 // 10. Health Checks
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+Log.Information("Connection String found: {HasConnectionString}", !string.IsNullOrEmpty(connectionString));
+
 builder.Services.AddHealthChecks()
-    .AddSqlServer(connectionString, name: "SQL Server")
+    .AddSqlServer(connectionString ?? "Server=(localdb)\\mssqllocaldb;Database=MarketHubDb;Trusted_Connection=True;", name: "SQL Server")
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379", name: "Redis")
     .AddElasticsearch(builder.Configuration.GetConnectionString("ElasticSearch") ?? "http://localhost:9200", name: "Elasticsearch");
 

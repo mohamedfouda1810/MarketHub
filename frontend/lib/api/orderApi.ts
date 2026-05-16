@@ -37,7 +37,7 @@ export interface TrackingDto {
 
 export const orderApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    checkout: builder.mutation<ApiResponse<OrderDto>, any>({
+    checkout: builder.mutation<ApiResponse<OrderDto[]>, any>({
       query: (data) => ({ url: '/orders/checkout', method: 'POST', body: data }),
       invalidatesTags: ['Order', 'Cart'],
     }),

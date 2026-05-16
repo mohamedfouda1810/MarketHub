@@ -5,5 +5,6 @@ namespace MarketHub.Shared.Exceptions;
 /// </summary>
 public class UnauthorizedException : AppException
 {
+    public UnauthorizedException() : base("Unauthorized access.") { }
     public UnauthorizedException(string message) : base(message) { }
 }

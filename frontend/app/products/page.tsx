@@ -5,77 +5,30 @@ import { Search, SlidersHorizontal, ChevronDown, LayoutGrid, List } from 'lucide
 import ProductCard from '@/components/product/ProductCard';
 import { useState } from 'react';
 
-const MOCK_PRODUCTS = [
-  {
-    id: '1',
-    name: 'Premium Wireless Headphones',
-    price: 299.99,
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80',
-    vendorName: 'TechGadgets Pro',
-    vendorSlug: 'techgadgets-pro',
-    slug: 'premium-wireless-headphones',
-    rating: 4.8,
-    reviewCount: 128,
-  },
-  {
-    id: '2',
-    name: 'Organic Silk Scarf',
-    price: 89.00,
-    imageUrl: 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=500&q=80',
-    vendorName: 'Organic Beauty',
-    vendorSlug: 'organic-beauty',
-    slug: 'organic-silk-scarf',
-    rating: 4.9,
-    reviewCount: 56,
-  },
-  {
-    id: '3',
-    name: 'Minimalist Leather Wallet',
-    price: 55.00,
-    imageUrl: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&q=80',
-    vendorName: 'Urban Outfitters',
-    vendorSlug: 'urban-outfitters',
-    slug: 'minimalist-leather-wallet',
-    rating: 4.7,
-    reviewCount: 210,
-  },
-  {
-    id: '4',
-    name: 'Smart Fitness Tracker',
-    price: 120.00,
-    imageUrl: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=500&q=80',
-    vendorName: 'TechGadgets Pro',
-    vendorSlug: 'techgadgets-pro',
-    slug: 'smart-fitness-tracker',
-    rating: 4.5,
-    reviewCount: 89,
-  },
-  {
-    id: '5',
-    name: 'Velvet Throw Pillow',
-    price: 35.00,
-    imageUrl: 'https://images.unsplash.com/photo-1579656335342-3eb69550e046?w=500&q=80',
-    vendorName: 'Home Essentials',
-    vendorSlug: 'home-essentials',
-    slug: 'velvet-throw-pillow',
-    rating: 4.6,
-    reviewCount: 42,
-  },
-  {
-    id: '6',
-    name: 'Artisan Coffee Mug',
-    price: 24.00,
-    imageUrl: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=500&q=80',
-    vendorName: 'Home Essentials',
-    vendorSlug: 'home-essentials',
-    slug: 'artisan-coffee-mug',
-    rating: 4.9,
-    reviewCount: 156,
-  },
-];
+import { useGetProductsQuery } from '@/lib/api/productApi';
+import { useState, useEffect } from 'react';
 
 export default function ProductsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [page, setPage] = useState(1);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+
+  const { data: result, isLoading, isFetching } = useGetProductsQuery({ 
+    pageNumber: page, 
+    pageSize: 12 
+  });
+
+  useEffect(() => {
+    if (result?.data?.items) {
+      if (page === 1) {
+        setAllProducts(result.data.items);
+      } else {
+        setAllProducts(prev => [...prev, ...result.data.items]);
+      }
+    }
+  }, [result, page]);
+
+  const hasMore = result?.data ? page < result.data.totalPages : false;
 
   return (
     <div className="container px-4 md:px-8 py-12 md:py-20">
@@ -131,24 +84,38 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {MOCK_PRODUCTS.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <ProductCard product={product as any} />
-            </motion.div>
-          ))}
-        </div>
+        {isLoading && page === 1 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="h-[400px] rounded-3xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {allProducts.map((product, index) => (
+              <motion.div
+                key={`${product.id}-${index}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (index % 12) * 0.05 }}
+              >
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-        <div className="flex justify-center mt-12">
-          <button className="px-12 py-5 rounded-2xl bg-white border border-muted-foreground/10 font-black text-lg shadow-soft hover:shadow-premium hover:-translate-y-1 transition-all">
-            Load More Products
-          </button>
-        </div>
+        {hasMore && (
+          <div className="flex justify-center mt-12">
+            <button 
+              onClick={() => setPage(p => p + 1)}
+              disabled={isFetching}
+              className="px-12 py-5 rounded-2xl bg-white border border-muted-foreground/10 font-black text-lg shadow-soft hover:shadow-premium hover:-translate-y-1 transition-all disabled:opacity-50"
+            >
+              {isFetching ? 'Loading...' : 'Load More Products'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

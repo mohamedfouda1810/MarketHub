@@ -4,8 +4,7 @@ import { RootState } from '../store';
 import { logout, setCredentials } from '../store/authSlice';
 
 // Mutex to prevent multiple simultaneous refresh attempts
-import { Mutex } from 'async-mutex'; // We can use async-mutex, or build a simple promise-based one.
-// Building a simple Promise-based mutex to avoid external dependency if not installed:
+// Building a simple Promise-based mutex to avoid external dependency:
 class SimpleMutex {
   private _locked = false;
   private _queue: Array<() => void> = [];

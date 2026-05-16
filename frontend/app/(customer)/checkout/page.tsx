@@ -14,12 +14,14 @@ import { cn } from '@/lib/utils';
 
 const steps = ['Details', 'Shipping', 'Payment'];
 
+import { useCheckoutMutation } from '@/lib/api/orderApi';
+
 export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const { items } = useSelector((state: RootState) => state.cart);
   const router = useRouter();
   const dispatch = useDispatch();
+  const [checkout, { isLoading: isProcessing }] = useCheckoutMutation();
 
   const cartTotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingFee = 9.99;
@@ -41,17 +43,20 @@ export default function CheckoutPage() {
   };
 
   const handleComplete = async () => {
-    setIsProcessing(true);
     try {
-      // Mock order creation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await checkout({
+        shippingAddressId: '00000000-0000-0000-0000-000000000000', // Placeholder until address selection is implemented
+        paymentMethod: 'CreditCard',
+      }).unwrap();
+
       dispatch(clearCart());
       toast.success('Order placed successfully!');
-      router.push('/checkout/success');
-    } catch (error) {
-      toast.error('Payment failed. Please try again.');
-    } finally {
-      setIsProcessing(false);
+      
+      // Pass the first order number to the success page
+      const orderNumber = result.data[0]?.orderNumber || 'MH-7721';
+      router.push(`/checkout/success?orderNumber=${orderNumber}`);
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Payment failed. Please try again.');
     }
   };
 

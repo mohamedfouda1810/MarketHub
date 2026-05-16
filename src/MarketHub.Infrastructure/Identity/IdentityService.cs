@@ -48,21 +48,25 @@ namespace MarketHub.Infrastructure.Identity
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
             {
+                Serilog.Log.Warning("Login failed: User with email {Email} not found.", email);
                 return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
             // Check if email is confirmed
             if (!await _userManager.IsEmailConfirmedAsync(user))
             {
+                Serilog.Log.Warning("Login failed: Email not confirmed for {Email}.", email);
                 return (false, string.Empty, string.Empty, new[] { "Email not confirmed. Please check your inbox." });
             }
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
             if (!result.Succeeded)
             {
+                Serilog.Log.Warning("Login failed: Invalid password for {Email}.", email);
                 return (false, string.Empty, string.Empty, new[] { "Invalid credentials." });
             }
 
+            Serilog.Log.Information("Login successful for {Email} from IP {IpAddress}.", email, ipAddress);
             return await GenerateTokensAsync(user, ipAddress);
         }
 

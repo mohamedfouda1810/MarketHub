@@ -64,6 +64,22 @@ public class VendorsController : BaseController
         return OkResponse(result);
     }
 
+    [HttpPost("{id}/approve")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<ApiResponse<Unit>>> ApproveVendor([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new ApproveVendorCommand(id));
+        return OkResponse(result, "Vendor approved successfully.");
+    }
+
+    [HttpPost("{id}/reject")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<ApiResponse<Unit>>> RejectVendor([FromRoute] Guid id, [FromBody] string reason)
+    {
+        var result = await Mediator.Send(new RejectVendorCommand(id, reason));
+        return OkResponse(result, "Vendor rejected successfully.");
+    }
+
     [HttpGet("me/dashboard")]
     [Authorize(Policy = "RequireVendor")]
     public async Task<ActionResult<ApiResponse<DashboardDto>>> GetDashboard()

@@ -9,6 +9,17 @@ namespace MarketHub.Infrastructure.Persistence.Repositories
     {
         public VendorRepository(AppDbContext context) : base(context) { }
 
+        public async Task<(IEnumerable<Vendor> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.AsQueryable();
+            int total = await query.CountAsync(cancellationToken);
+            var items = await query.OrderBy(v => v.StoreName)
+                                   .Skip((pageNumber - 1) * pageSize)
+                                   .Take(pageSize)
+                                   .ToListAsync(cancellationToken);
+            return (items, total);
+        }
+
         public async Task<Vendor?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
         {
             return await _dbSet.FirstOrDefaultAsync(v => v.StoreSlug == slug, cancellationToken);

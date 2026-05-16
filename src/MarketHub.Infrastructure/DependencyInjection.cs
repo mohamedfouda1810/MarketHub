@@ -52,6 +52,7 @@ namespace MarketHub.Infrastructure
             services.AddScoped<IOrderRepository, OrderRepository>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<ICartRepository, CartRepository>();
+            services.AddScoped<IAddressRepository, AddressRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;
@@ -72,7 +73,7 @@ namespace MarketHub.Infrastructure
             .AddDefaultTokenProviders();
 
             var jwtSettings = configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? "YourDefaultSecretKeyForDevelopmentOnly";
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
 
             services.AddAuthentication(options =>
             {

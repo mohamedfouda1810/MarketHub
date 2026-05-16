@@ -25,7 +25,7 @@ public interface IFileStorageService
 
 public interface IPaymentService
 {
-    Task<string> CreatePaymentIntentAsync(decimal amount, string currency = "usd");
+    Task<string> CreatePaymentIntentAsync(Guid orderId, decimal amount, string currency = "usd");
     Task<bool> RefundAsync(string paymentIntentId);
     Task<bool> ProcessWebhookAsync(string json, string signature);
 }

@@ -1,5 +1,6 @@
 using MarketHub.Domain.Entities;
 using MarketHub.Domain.Interfaces;
+using MarketHub.Infrastructure.Persistence.Repositories;
 
 namespace MarketHub.Infrastructure.Persistence
 {
@@ -11,6 +12,7 @@ namespace MarketHub.Infrastructure.Persistence
         public IOrderRepository Orders { get; }
         public ICustomerRepository Customers { get; }
         public ICartRepository Carts { get; }
+        public IAddressRepository Addresses { get; }
 
         public UnitOfWork(
             AppDbContext context,
@@ -18,7 +20,8 @@ namespace MarketHub.Infrastructure.Persistence
             IProductRepository products,
             IOrderRepository orders,
             ICustomerRepository customers,
-            ICartRepository carts)
+            ICartRepository carts,
+            IAddressRepository addresses)
         {
             _context = context;
             Vendors = vendors;
@@ -26,6 +29,7 @@ namespace MarketHub.Infrastructure.Persistence
             Orders = orders;
             Customers = customers;
             Carts = carts;
+            Addresses = addresses;
         }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

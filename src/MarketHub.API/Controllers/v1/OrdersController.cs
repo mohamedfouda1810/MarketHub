@@ -14,7 +14,7 @@ public class OrdersController : BaseController
 {
     [HttpPost("checkout")]
     [Authorize] // Assume Customer
-    public async Task<ActionResult<ApiResponse<OrderDto>>> Checkout([FromBody] CreateOrderCommand command)
+    public async Task<ActionResult<ApiResponse<List<OrderDto>>>> Checkout([FromBody] CreateOrderCommand command)
     {
         var result = await Mediator.Send(command);
         return OkResponse(result, "Checkout completed successfully.");

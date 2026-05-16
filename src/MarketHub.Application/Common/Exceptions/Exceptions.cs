@@ -20,4 +20,10 @@ public class ValidationException : Exception
 public class UnauthorizedException : Exception
 {
     public UnauthorizedException() : base("Unauthorized access.") { }
+    public UnauthorizedException(string message) : base(message) { }
+}
+
+public class BadRequestException : Exception
+{
+    public BadRequestException(string message) : base(message) { }
 }
