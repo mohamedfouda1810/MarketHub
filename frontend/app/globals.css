@@ -85,23 +85,23 @@
   }
 
   .glass-primary {
-    @apply bg-primary/8 backdrop-blur-lg border border-primary/15 shadow-soft hover:shadow-glow transition-all;
+    @apply bg-primary/10 backdrop-blur-lg border border-primary/15 shadow-soft hover:shadow-glow transition-all;
   }
 
   .glass-amber {
-    @apply bg-amber-500/8 backdrop-blur-lg border border-amber-500/20 shadow-soft hover:shadow-amber-glow transition-all;
+    @apply bg-amber-500/10 backdrop-blur-lg border border-amber-500/20 shadow-soft hover:shadow-amber-glow transition-all;
   }
 
   .glass-emerald {
-    @apply bg-emerald-500/8 backdrop-blur-lg border border-emerald-500/20 shadow-soft hover:shadow-emerald-glow transition-all;
+    @apply bg-emerald-500/10 backdrop-blur-lg border border-emerald-500/20 shadow-soft hover:shadow-emerald-glow transition-all;
   }
 
   .glass-rose {
-    @apply bg-rose-500/8 backdrop-blur-lg border border-rose-500/20 shadow-soft hover:shadow-rose-glow transition-all;
+    @apply bg-rose-500/10 backdrop-blur-lg border border-rose-500/20 shadow-soft hover:shadow-rose-glow transition-all;
   }
 
   .glass-violet {
-    @apply bg-violet-500/8 backdrop-blur-lg border border-violet-500/20 shadow-soft hover:shadow-violet-glow transition-all;
+    @apply bg-violet-500/10 backdrop-blur-lg border border-violet-500/20 shadow-soft hover:shadow-violet-glow transition-all;
   }
 
   /* ─── Buttons ──────────────────────────────────────────────────────── */
@@ -147,7 +147,7 @@
 
   /* ─── Inputs ───────────────────────────────────────────────────────── */
   .input-premium {
-    @apply bg-white border border-muted-foreground/10 focus:border-primary/40 focus:ring-4 focus:ring-primary/8
+    @apply bg-white border border-muted-foreground/10 focus:border-primary/40 focus:ring-4 focus:ring-primary/10
            transition-all duration-200 rounded-2xl shadow-sm placeholder:text-muted-foreground/40
            font-medium text-sm outline-none px-4 py-3;
   }

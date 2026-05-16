@@ -172,7 +172,7 @@ export default function Footer() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
-                className="h-12 w-full rounded-2xl bg-muted/50 border border-muted/50 px-5 pr-14 text-sm font-medium focus:border-primary/30 focus:ring-4 focus:ring-primary/8 outline-none transition-all"
+                className="h-12 w-full rounded-2xl bg-muted/50 border border-muted/50 px-5 pr-14 text-sm font-medium focus:border-primary/30 focus:ring-4 focus:ring-primary/10 outline-none transition-all"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}

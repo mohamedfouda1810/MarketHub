@@ -127,7 +127,7 @@ export default function HomePage() {
                   src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80" 
                   alt="Marketplace Hero" 
                   fill 
-                  className="object-cover transition-transform duration-[2s] hover:scale-105"
+                  className="object-cover transition-transform duration-[2000ms] hover:scale-105"
                   priority
                 />
               </div>

@@ -61,7 +61,7 @@ export default function ProductView({ product }: ProductViewProps) {
                   src={displayImage}
                   alt={product.name}
                   fill
-                  className="object-cover transition-transform duration-[1.5s] group-hover:scale-110"
+                  className="object-cover transition-transform duration-[1500ms] group-hover:scale-110"
                   sizes="(max-width: 768px) 100vw, 50vw"
                   priority
                 />

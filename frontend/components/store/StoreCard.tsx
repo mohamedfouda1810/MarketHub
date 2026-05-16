@@ -26,7 +26,7 @@ const StoreCard = memo(function StoreCard({ vendor }: StoreCardProps) {
             src={vendor.bannerUrl} 
             alt={vendor.storeName} 
             fill 
-            className="object-cover transition-transform duration-[2s] group-hover:scale-110" 
+            className="object-cover transition-transform duration-[2000ms] group-hover:scale-110" 
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/30 via-primary/10 to-transparent" />

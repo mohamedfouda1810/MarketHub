@@ -104,7 +104,7 @@ export default function ProductsPage() {
                 placeholder="Search products…"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
-                className="flex h-12 w-full rounded-2xl border-none bg-muted/50 px-12 py-2 text-sm font-medium focus:ring-4 focus:ring-primary/8 transition-all outline-none"
+                className="flex h-12 w-full rounded-2xl border-none bg-muted/50 px-12 py-2 text-sm font-medium focus:ring-4 focus:ring-primary/10 transition-all outline-none"
               />
               {inputValue && (
                 <button

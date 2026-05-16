@@ -100,7 +100,7 @@ export default function Header() {
               onChange={e => setSearchValue(e.target.value)}
               onKeyDown={handleSearch}
               placeholder="Search products… (Enter)"
-              className="h-11 w-full rounded-2xl border border-muted/40 bg-muted/40 pl-11 pr-4 text-sm font-medium focus:bg-white focus:border-primary/30 focus:ring-4 focus:ring-primary/8 transition-all outline-none"
+              className="h-11 w-full rounded-2xl border border-muted/40 bg-muted/40 pl-11 pr-4 text-sm font-medium focus:bg-white focus:border-primary/30 focus:ring-4 focus:ring-primary/10 transition-all outline-none"
             />
           </div>
 
